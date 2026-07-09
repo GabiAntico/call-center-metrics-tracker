@@ -11,6 +11,7 @@ describe('DashboardComponent', () => {
     getMetricByDate: ReturnType<typeof vi.fn>;
     getMetricsByMonth: ReturnType<typeof vi.fn>;
     updateMetric: ReturnType<typeof vi.fn>;
+    deleteMetric: ReturnType<typeof vi.fn>;
   };
   let router: { navigateByUrl: ReturnType<typeof vi.fn> };
 
@@ -24,6 +25,7 @@ describe('DashboardComponent', () => {
       getMetricByDate: vi.fn().mockResolvedValue(null),
       getMetricsByMonth: vi.fn().mockResolvedValue([]),
       updateMetric: vi.fn().mockResolvedValue({}),
+      deleteMetric: vi.fn().mockResolvedValue(undefined),
     };
     router = {
       navigateByUrl: vi.fn().mockResolvedValue(true),
@@ -50,6 +52,8 @@ describe('DashboardComponent', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     const component = fixture.componentInstance;
 
+    expect(component.selectedMetricDate()).toBe(component.today);
+
     component.metricsForm.setValue({
       total_calls: 42,
       technical_visits: 12,
@@ -68,6 +72,69 @@ describe('DashboardComponent', () => {
       installation_visits: 7,
     });
     expect(component.successMessage()).toContain('Supabase');
+  });
+
+  it('should save daily metrics with the selected past work date', async () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    component.changeMetricDateByDays(-1);
+    const selectedDate = component.selectedMetricDate();
+    component.metricsForm.setValue({
+      total_calls: 28,
+      technical_visits: 6,
+      rescheduled_visits: 2,
+      installation_visits: 3,
+    });
+
+    await component.saveMetric();
+
+    expect(selectedDate).not.toBe(component.today);
+    expect(metricsService.getMetricByDate).toHaveBeenCalledWith(selectedDate);
+    expect(metricsService.createMetric).toHaveBeenCalledWith({
+      work_date: selectedDate,
+      total_calls: 28,
+      technical_visits: 6,
+      rescheduled_visits: 2,
+      installation_visits: 3,
+    });
+  });
+
+  it('should not allow selecting a future metric date', () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    component.changeMetricDateByDays(1);
+
+    expect(component.selectedMetricDate()).toBe(component.today);
+
+    component.toggleMetricDatePicker();
+    const currentMonth = component.metricDatePickerMonth();
+    component.changeMetricDatePickerMonth(1);
+    component.selectMetricDate('2999-01-01');
+
+    expect(component.isMetricDatePickerNextDisabled()).toBe(true);
+    expect(component.metricDatePickerMonth()).toBe(currentMonth);
+    expect(component.selectedMetricDate()).toBe(component.today);
+  });
+
+  it('should select a past metric date from the custom calendar picker', () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    component.toggleMetricDatePicker();
+    component.changeMetricDatePickerMonth(-1);
+    const pastDay = component.metricDateCalendarDays().find((day) => day.date && !day.isFuture);
+
+    if (!pastDay?.date) {
+      throw new Error('Expected the calendar to expose a selectable past date.');
+    }
+
+    component.selectMetricDate(pastDay.date);
+
+    expect(component.selectedMetricDate()).toBe(pastDay.date);
+    expect(component.metricDatePickerMonth()).toBe(pastDay.date.slice(0, 7));
+    expect(component.isMetricDatePickerOpen()).toBe(false);
   });
 
   it('should reject a second metric for the current day', async () => {
@@ -96,7 +163,7 @@ describe('DashboardComponent', () => {
     await component.saveMetric();
 
     expect(metricsService.createMetric).not.toHaveBeenCalled();
-    expect(component.errorMessage()).toContain('El día de hoy ya hay un registro');
+    expect(component.errorMessage()).toContain('La fecha seleccionada ya tiene un registro');
   });
 
   it('should reject visit breakdowns greater than total technical visits', () => {
@@ -296,5 +363,46 @@ describe('DashboardComponent', () => {
     });
     expect(metricsService.getMetricByDate).not.toHaveBeenCalled();
     expect(component.editingMetricId()).toBeNull();
+  });
+
+  it('should delete a metric selected from the summary table after confirmation', async () => {
+    metricsService.getMetricsByMonth
+      .mockResolvedValueOnce([
+        {
+          id: 'metric-1',
+          user_id: 'user-1',
+          work_date: '2026-07-09',
+          total_calls: 25,
+          technical_visits: 4,
+          rescheduled_visits: 1,
+          installation_visits: 2,
+          notes: null,
+          created_at: '2026-07-09T00:00:00Z',
+          updated_at: '2026-07-09T00:00:00Z',
+        },
+      ])
+      .mockResolvedValueOnce([]);
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    component.selectedSummaryMonth.set('2026-07');
+    await component.loadMonthlySummary();
+    component.requestMetricDelete(component.summaryDays()[8]);
+
+    expect(component.pendingDeleteMetricId()).toBe('metric-1');
+
+    await component.confirmMetricDelete(component.summaryDays()[8]);
+
+    expect(metricsService.deleteMetric).toHaveBeenCalledWith('metric-1');
+    expect(component.pendingDeleteMetricId()).toBeNull();
+    expect(component.deletingMetricId()).toBeNull();
+    expect(component.successMessage()).toContain('Registro eliminado');
+    expect(component.summaryDays()[8].hasMetric).toBe(false);
+    expect(component.summaryTotals()).toEqual({
+      calls: 0,
+      technicalVisits: 0,
+      selectedVisits: 0,
+      percentage: 0,
+    });
   });
 });

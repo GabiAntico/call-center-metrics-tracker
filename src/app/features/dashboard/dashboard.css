@@ -156,15 +156,6 @@ h1 {
   line-height: 1.08;
 }
 
-.panel-heading > span {
-  border-radius: 8px;
-  background: #eef2f4;
-  color: #334044;
-  padding: 10px 12px;
-  font-weight: 850;
-  white-space: nowrap;
-}
-
 form {
   display: grid;
   gap: 20px;

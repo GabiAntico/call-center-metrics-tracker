@@ -45,10 +45,94 @@
           <div>
             <p class="eyebrow">Formulario</p>
             <h2 id="daily-entry-title">
-              {{ editingMetricId() ? 'Editar métricas del día' : 'Métricas de hoy' }}
+              {{ editingMetricId() ? 'Editar métricas del día' : 'Métricas del día' }}
             </h2>
           </div>
-          <span>{{ editingMetricDate() || today }}</span>
+          <div class="entry-date-control" aria-label="Fecha de carga">
+            <button
+              class="date-nav-button"
+              type="button"
+              aria-label="Día anterior"
+              [disabled]="editingMetricId() !== null"
+              (click)="changeMetricDateByDays(-1)"
+            >
+              <span aria-hidden="true">&lt;</span>
+            </button>
+            <time class="entry-date-value" [attr.datetime]="selectedMetricDate()">
+              {{ selectedMetricDate() }}
+            </time>
+            <button
+              class="date-nav-button"
+              type="button"
+              aria-label="Día siguiente"
+              [disabled]="editingMetricId() !== null || selectedMetricDate() >= today"
+              (click)="changeMetricDateByDays(1)"
+            >
+              <span aria-hidden="true">&gt;</span>
+            </button>
+            <button
+              class="date-calendar-button"
+              type="button"
+              aria-label="Seleccionar fecha"
+              aria-haspopup="dialog"
+              [attr.aria-expanded]="isMetricDatePickerOpen()"
+              [disabled]="editingMetricId() !== null"
+              (click)="toggleMetricDatePicker()"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path
+                  d="M7 2v3M17 2v3M4 9h16M6 5h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"
+                />
+              </svg>
+            </button>
+
+            @if (isMetricDatePickerOpen()) {
+              <div class="date-popover month-popover" role="dialog" aria-label="Seleccionar fecha">
+                <div class="month-popover-header">
+                  <button
+                    type="button"
+                    aria-label="Mes anterior"
+                    (click)="changeMetricDatePickerMonth(-1)"
+                  >
+                    &lt;
+                  </button>
+                  <strong>{{ metricDatePickerLabel() }}</strong>
+                  <button
+                    type="button"
+                    aria-label="Mes siguiente"
+                    [disabled]="isMetricDatePickerNextDisabled()"
+                    (click)="changeMetricDatePickerMonth(1)"
+                  >
+                    &gt;
+                  </button>
+                </div>
+
+                <div class="date-weekday-grid" aria-hidden="true">
+                  @for (weekday of metricDateWeekdays; track weekday) {
+                    <span>{{ weekday }}</span>
+                  }
+                </div>
+
+                <div class="date-grid">
+                  @for (day of metricDateCalendarDays(); track $index) {
+                    @if (day.date) {
+                      <button
+                        type="button"
+                        [class.is-active]="isSelectedMetricDate(day.date)"
+                        [class.is-today]="day.date === today"
+                        [disabled]="day.isFuture"
+                        (click)="selectMetricDate(day.date)"
+                      >
+                        {{ day.day }}
+                      </button>
+                    } @else {
+                      <span class="date-grid-empty" aria-hidden="true"></span>
+                    }
+                  }
+                </div>
+              </div>
+            }
+          </div>
         </div>
 
         <form [formGroup]="metricsForm" (ngSubmit)="saveMetric()" novalidate>
@@ -331,9 +415,41 @@
                 <span>{{ day.percentage.toFixed(1) }}%</span>
                 <span>
                   @if (day.metricId) {
-                    <button class="edit-row-button" type="button" (click)="startMetricEdit(day)">
-                      Editar
-                    </button>
+                    <span class="row-action-group">
+                      @if (pendingDeleteMetricId() === day.metricId) {
+                        <button
+                          class="confirm-delete-button"
+                          type="button"
+                          [disabled]="deletingMetricId() === day.metricId"
+                          (click)="confirmMetricDelete(day)"
+                        >
+                          {{ deletingMetricId() === day.metricId ? 'Eliminando...' : 'Confirmar' }}
+                        </button>
+                        <button
+                          class="cancel-delete-button"
+                          type="button"
+                          [disabled]="deletingMetricId() === day.metricId"
+                          (click)="cancelMetricDelete()"
+                        >
+                          Cancelar
+                        </button>
+                      } @else {
+                        <button
+                          class="edit-row-button"
+                          type="button"
+                          (click)="startMetricEdit(day)"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          class="delete-row-button"
+                          type="button"
+                          (click)="requestMetricDelete(day)"
+                        >
+                          Eliminar
+                        </button>
+                      }
+                    </span>
                   } @else if (day.hasMetric) {
                     <span class="muted-cell">Duplicado</span>
                   } @else {

@@ -26,6 +26,12 @@ interface MonthOption {
   label: string;
 }
 
+interface MetricDateCalendarDay {
+  date: string | null;
+  day: number | null;
+  isFuture: boolean;
+}
+
 interface SummaryDay {
   date: string;
   day: number;
@@ -76,7 +82,12 @@ export class DashboardComponent implements OnInit {
   readonly successMessage = signal('');
   readonly editingMetricId = signal<string | null>(null);
   readonly editingMetricDate = signal<string | null>(null);
+  readonly pendingDeleteMetricId = signal<string | null>(null);
+  readonly deletingMetricId = signal<string | null>(null);
   readonly today = this.getLocalDate();
+  readonly selectedMetricDate = signal(this.today);
+  readonly isMetricDatePickerOpen = signal(false);
+  readonly metricDatePickerMonth = signal(this.today.slice(0, 7));
   readonly chartWidth = 720;
   readonly chartHeight = 300;
   readonly chartTop = 24;
@@ -85,6 +96,7 @@ export class DashboardComponent implements OnInit {
   readonly chartLeft = 54;
   readonly chartTooltipWidth = 176;
   readonly chartTooltipHeight = 72;
+  readonly metricDateWeekdays = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
   readonly monthOptions: MonthOption[] = [
     { value: 1, shortLabel: 'Ene', label: 'Enero' },
     { value: 2, shortLabel: 'Feb', label: 'Febrero' },
@@ -108,6 +120,15 @@ export class DashboardComponent implements OnInit {
   readonly selectedSummaryMonth = signal(this.today.slice(0, 7));
   readonly summaryMonthPickerYear = signal(Number(this.today.slice(0, 4)));
   readonly isSummaryMonthPickerOpen = signal(false);
+  readonly metricDatePickerLabel = computed(() =>
+    this.getSummaryMonthLabel(this.metricDatePickerMonth()),
+  );
+  readonly metricDateCalendarDays = computed(() =>
+    this.buildMetricDateCalendarDays(this.metricDatePickerMonth()),
+  );
+  readonly isMetricDatePickerNextDisabled = computed(
+    () => this.addMonthsToMonthValue(this.metricDatePickerMonth(), 1) > this.today.slice(0, 7),
+  );
   readonly selectedSummaryMonthLabel = computed(() =>
     this.getSummaryMonthLabel(this.selectedSummaryMonth()),
   );
@@ -162,8 +183,13 @@ export class DashboardComponent implements OnInit {
     }
 
     const metrics = this.metricsForm.getRawValue();
-    const metricDate = this.editingMetricDate() ?? this.today;
+    const metricDate = this.selectedMetricDate();
     const editingMetricId = this.editingMetricId();
+
+    if (metricDate > this.today) {
+      this.errorMessage.set('No podés cargar métricas para una fecha futura.');
+      return;
+    }
 
     this.isSavingMetric.set(true);
 
@@ -181,11 +207,11 @@ export class DashboardComponent implements OnInit {
         this.successMessage.set('Métricas actualizadas correctamente en Supabase.');
         this.clearMetricEditState();
       } else {
-        const existingMetric = await this.metricsService.getMetricByDate(this.today);
+        const existingMetric = await this.metricsService.getMetricByDate(metricDate);
 
         if (existingMetric) {
           this.errorMessage.set(
-            'El día de hoy ya hay un registro. Si necesitás corregirlo, editalo desde la tabla del resumen.',
+            'La fecha seleccionada ya tiene un registro. Si necesitás corregirlo, editalo desde la tabla del resumen.',
           );
           return;
         }
@@ -272,6 +298,46 @@ export class DashboardComponent implements OnInit {
     this.buildMonthlySummary(year, month, this.monthlySummaryMetrics());
   }
 
+  changeMetricDateByDays(days: number): void {
+    if (this.editingMetricId()) {
+      return;
+    }
+
+    this.setSelectedMetricDate(this.addDaysToDate(this.selectedMetricDate(), days));
+  }
+
+  toggleMetricDatePicker(): void {
+    if (this.editingMetricId()) {
+      return;
+    }
+
+    this.metricDatePickerMonth.set(this.selectedMetricDate().slice(0, 7));
+    this.isMetricDatePickerOpen.update((isOpen) => !isOpen);
+  }
+
+  changeMetricDatePickerMonth(delta: number): void {
+    const nextMonth = this.addMonthsToMonthValue(this.metricDatePickerMonth(), delta);
+
+    if (nextMonth > this.today.slice(0, 7)) {
+      return;
+    }
+
+    this.metricDatePickerMonth.set(nextMonth);
+  }
+
+  selectMetricDate(dateValue: string | null): void {
+    if (!dateValue || dateValue > this.today) {
+      return;
+    }
+
+    this.setSelectedMetricDate(dateValue);
+    this.isMetricDatePickerOpen.set(false);
+  }
+
+  isSelectedMetricDate(dateValue: string | null): boolean {
+    return dateValue === this.selectedMetricDate();
+  }
+
   handleChartPointerMove(event: MouseEvent): void {
     const hoverLayer = event.currentTarget as SVGElement | null;
     const svg = hoverLayer?.ownerSVGElement;
@@ -308,8 +374,12 @@ export class DashboardComponent implements OnInit {
       return;
     }
 
+    this.cancelMetricDelete();
+    this.isMetricDatePickerOpen.set(false);
     this.editingMetricId.set(day.metricId);
     this.editingMetricDate.set(day.date);
+    this.selectedMetricDate.set(day.date);
+    this.metricDatePickerMonth.set(day.date.slice(0, 7));
     this.activeMenu.set('daily-entry');
     this.errorMessage.set('');
     this.successMessage.set('');
@@ -321,6 +391,47 @@ export class DashboardComponent implements OnInit {
     });
     this.metricsForm.markAsPristine();
     this.metricsForm.markAsUntouched();
+  }
+
+  requestMetricDelete(day: SummaryDay): void {
+    if (!day.metricId) {
+      return;
+    }
+
+    this.pendingDeleteMetricId.set(day.metricId);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+  }
+
+  cancelMetricDelete(): void {
+    this.pendingDeleteMetricId.set(null);
+  }
+
+  async confirmMetricDelete(day: SummaryDay): Promise<void> {
+    if (!day.metricId) {
+      return;
+    }
+
+    this.deletingMetricId.set(day.metricId);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+
+    try {
+      await this.metricsService.deleteMetric(day.metricId);
+
+      if (this.editingMetricId() === day.metricId) {
+        this.clearMetricEditState();
+        this.metricsForm.reset();
+      }
+
+      this.pendingDeleteMetricId.set(null);
+      this.successMessage.set('Registro eliminado correctamente.');
+      await this.loadMonthlySummary();
+    } catch (error) {
+      this.errorMessage.set(this.getFriendlyError(error));
+    } finally {
+      this.deletingMetricId.set(null);
+    }
   }
 
   cancelMetricEdit(): void {
@@ -501,6 +612,79 @@ export class DashboardComponent implements OnInit {
       .filter(Boolean);
   }
 
+  private setSelectedMetricDate(dateValue: string): void {
+    if (!this.isValidDateValue(dateValue)) {
+      return;
+    }
+
+    const safeDate = dateValue > this.today ? this.today : dateValue;
+    this.selectedMetricDate.set(safeDate);
+    this.metricDatePickerMonth.set(safeDate.slice(0, 7));
+    this.errorMessage.set('');
+    this.successMessage.set('');
+  }
+
+  private addDaysToDate(dateValue: string, days: number): string {
+    const [year, month, day] = dateValue.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    date.setDate(date.getDate() + days);
+
+    return this.formatDateValue(date);
+  }
+
+  private isValidDateValue(dateValue: string): boolean {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+      return false;
+    }
+
+    const [year, month, day] = dateValue.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  }
+
+  private buildMetricDateCalendarDays(monthValue: string): MetricDateCalendarDay[] {
+    if (!/^\d{4}-\d{2}$/.test(monthValue)) {
+      return [];
+    }
+
+    const [year, month] = monthValue.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const firstDayOfMonth = new Date(year, month - 1, 1).getDay();
+    const leadingBlanks = (firstDayOfMonth + 6) % 7;
+    const calendarDays: MetricDateCalendarDay[] = Array.from({ length: leadingBlanks }, () => ({
+      date: null,
+      day: null,
+      isFuture: false,
+    }));
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const date = `${monthValue}-${String(day).padStart(2, '0')}`;
+      calendarDays.push({
+        date,
+        day,
+        isFuture: date > this.today,
+      });
+    }
+
+    while (calendarDays.length % 7 !== 0) {
+      calendarDays.push({
+        date: null,
+        day: null,
+        isFuture: false,
+      });
+    }
+
+    return calendarDays;
+  }
+
+  private addMonthsToMonthValue(monthValue: string, months: number): string {
+    const [year, month] = monthValue.split('-').map(Number);
+    const date = new Date(year, month - 1 + months, 1);
+
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  }
+
   private visitBreakdownValidator(control: AbstractControl): ValidationErrors | null {
     const technicalVisits = Number(control.get('technical_visits')?.value ?? 0);
     const rescheduledVisits = Number(control.get('rescheduled_visits')?.value ?? 0);
@@ -558,6 +742,11 @@ export class DashboardComponent implements OnInit {
 
   private getLocalDate(): string {
     const date = new Date();
+    const timezoneOffset = date.getTimezoneOffset() * 60_000;
+    return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
+  }
+
+  private formatDateValue(date: Date): string {
     const timezoneOffset = date.getTimezoneOffset() * 60_000;
     return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
   }
