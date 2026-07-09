@@ -21,7 +21,12 @@
   </section>
 
   <section class="auth-panel" aria-labelledby="auth-title">
-    <div class="mode-switch" role="tablist" aria-label="Modo de autenticación">
+    <div
+      class="mode-switch"
+      [class.is-register-active]="mode() === 'register'"
+      role="tablist"
+      aria-label="Modo de autenticación"
+    >
       <button
         type="button"
         role="tab"

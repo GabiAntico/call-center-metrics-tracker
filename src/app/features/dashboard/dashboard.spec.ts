@@ -324,6 +324,24 @@ describe('DashboardComponent', () => {
     expect(fixture.nativeElement.querySelector('.chart-hover-line')).toBeNull();
   });
 
+  it('should keep the chart locked to the light theme for Dark Reader', () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    component.activeMenu.set('summary');
+    fixture.detectChanges();
+
+    const chartCard = fixture.nativeElement.querySelector('.chart-card') as HTMLElement;
+    const chart = fixture.nativeElement.querySelector('.summary-chart') as SVGSVGElement;
+    const chartLine = fixture.nativeElement.querySelector('.chart-line') as SVGPolylineElement;
+
+    expect(chartCard.classList.contains('is-light-theme-locked')).toBe(true);
+    expect(chartCard.hasAttribute('data-darkreader-ignore')).toBe(true);
+    expect(chart.classList.contains('is-light-theme-locked')).toBe(true);
+    expect(chart.hasAttribute('data-darkreader-ignore')).toBe(true);
+    expect(chartLine.getAttribute('style')).toContain('--darkreader-inline-stroke: #0f766e');
+  });
+
   it('should edit a metric selected from the summary table', async () => {
     metricsService.getMetricsByMonth.mockResolvedValue([
       {

@@ -20,7 +20,11 @@
   </section>
 
   <section class="workspace">
-    <nav class="dashboard-menu" aria-label="Menú principal">
+    <nav
+      class="dashboard-menu"
+      [class.is-summary-active]="activeMenu() === 'summary'"
+      aria-label="Menú principal"
+    >
       <button
         type="button"
         [class.is-active]="activeMenu() === 'daily-entry'"
@@ -143,7 +147,9 @@
               @if (
                 metricsForm.controls.total_calls.touched && metricsForm.controls.total_calls.invalid
               ) {
-                <small>Este dato es requerido.</small>
+                <small class="is-visible">Este dato es requerido.</small>
+              } @else {
+                <small aria-hidden="true">Este dato es requerido.</small>
               }
             </label>
 
@@ -154,7 +160,9 @@
                 metricsForm.controls.technical_visits.touched &&
                 metricsForm.controls.technical_visits.invalid
               ) {
-                <small>Este dato es requerido.</small>
+                <small class="is-visible">Este dato es requerido.</small>
+              } @else {
+                <small aria-hidden="true">Este dato es requerido.</small>
               }
             </label>
 
@@ -165,7 +173,9 @@
                 metricsForm.controls.rescheduled_visits.touched &&
                 metricsForm.controls.rescheduled_visits.invalid
               ) {
-                <small>Este dato es requerido.</small>
+                <small class="is-visible">Este dato es requerido.</small>
+              } @else {
+                <small aria-hidden="true">Este dato es requerido.</small>
               }
             </label>
 
@@ -176,7 +186,9 @@
                 metricsForm.controls.installation_visits.touched &&
                 metricsForm.controls.installation_visits.invalid
               ) {
-                <small>Este dato es requerido.</small>
+                <small class="is-visible">Este dato es requerido.</small>
+              } @else {
+                <small aria-hidden="true">Este dato es requerido.</small>
               }
             </label>
           </div>
@@ -308,9 +320,10 @@
             </div>
           </div>
 
-          <div class="chart-card">
+          <div class="chart-card is-light-theme-locked" data-darkreader-ignore>
             <svg
-              class="summary-chart"
+              class="summary-chart is-light-theme-locked"
+              data-darkreader-ignore
               [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight"
               preserveAspectRatio="none"
               role="img"
@@ -318,6 +331,7 @@
             >
               <rect
                 class="plot-background"
+                style="--darkreader-inline-fill: #fbfcfd !important; fill: #fbfcfd !important"
                 [attr.x]="chartLeft"
                 [attr.y]="chartTop"
                 [attr.width]="chartWidth - chartLeft - chartRight"
@@ -327,26 +341,68 @@
               @for (tick of chartTicks(); track tick.value) {
                 <line
                   class="grid-line"
+                  style="--darkreader-inline-stroke: #dfe6ea !important; stroke: #dfe6ea !important"
                   [attr.x1]="chartLeft"
                   [attr.x2]="chartWidth - chartRight"
                   [attr.y1]="tick.y"
                   [attr.y2]="tick.y"
                 />
-                <text class="y-label" [attr.x]="chartLeft - 10" [attr.y]="tick.y + 4">
+                <text
+                  class="y-label"
+                  style="--darkreader-inline-fill: #5b676b !important; fill: #5b676b !important"
+                  [attr.x]="chartLeft - 10"
+                  [attr.y]="tick.y + 4"
+                >
                   {{ tick.value.toFixed(0) }}%
                 </text>
               }
 
-              <path class="chart-area" [attr.d]="chartAreaPath()" />
-              <polyline class="chart-line" [attr.points]="chartLinePoints()" />
+              <path
+                class="chart-area"
+                style="
+                  --darkreader-inline-fill: rgba(15, 118, 110, 0.1) !important;
+                  fill: rgba(15, 118, 110, 0.1) !important;
+                "
+                [attr.d]="chartAreaPath()"
+              />
+              <polyline
+                class="chart-line"
+                style="
+                  fill: none !important;
+                  --darkreader-inline-stroke: #0f766e !important;
+                  stroke: #0f766e !important;
+                  stroke-linecap: round !important;
+                  stroke-linejoin: round !important;
+                  stroke-width: 4 !important;
+                "
+                [attr.points]="chartLinePoints()"
+              />
 
               @for (point of summaryDays(); track point.date) {
-                <circle class="chart-point" [attr.cx]="point.x" [attr.cy]="point.y" r="3.6" />
+                <circle
+                  class="chart-point"
+                  style="
+                    fill: #ffffff !important;
+                    --darkreader-inline-fill: #ffffff !important;
+                    --darkreader-inline-stroke: #0f766e !important;
+                    stroke: #0f766e !important;
+                    stroke-width: 3 !important;
+                  "
+                  [attr.cx]="point.x"
+                  [attr.cy]="point.y"
+                  r="3.6"
+                />
               }
 
               @if (hoveredSummaryDay(); as hoveredDay) {
                 <line
                   class="chart-hover-line"
+                  style="
+                    stroke: #66767a !important;
+                    --darkreader-inline-stroke: #66767a !important;
+                    stroke-linecap: round !important;
+                    stroke-width: 1.4 !important;
+                  "
                   [attr.x1]="hoveredDay.x"
                   [attr.x2]="hoveredDay.x"
                   [attr.y1]="chartTop"
@@ -354,6 +410,14 @@
                 />
                 <circle
                   class="chart-hover-point"
+                  style="
+                    fill: #0f766e !important;
+                    --darkreader-inline-fill: #0f766e !important;
+                    --darkreader-inline-stroke: #ffffff !important;
+                    filter: drop-shadow(0 4px 8px rgba(15, 118, 110, 0.24)) !important;
+                    stroke: #ffffff !important;
+                    stroke-width: 4 !important;
+                  "
                   [attr.cx]="hoveredDay.x"
                   [attr.cy]="hoveredDay.y"
                   r="6"
@@ -361,16 +425,38 @@
                 <g class="chart-tooltip" [attr.transform]="getChartTooltipTransform(hoveredDay)">
                   <rect
                     class="chart-tooltip-panel"
+                    style="
+                      fill: #172124 !important;
+                      --darkreader-inline-fill: #172124 !important;
+                      filter: drop-shadow(0 12px 24px rgba(23, 33, 36, 0.18)) !important;
+                    "
                     [attr.width]="chartTooltipWidth"
                     [attr.height]="chartTooltipHeight"
                     rx="8"
                     ry="8"
                   />
-                  <text class="chart-tooltip-title" x="14" y="22">Día {{ hoveredDay.day }}</text>
-                  <text class="chart-tooltip-date" x="14" y="42">
+                  <text
+                    class="chart-tooltip-title"
+                    style="--darkreader-inline-fill: #f6c453 !important; fill: #f6c453 !important"
+                    x="14"
+                    y="22"
+                  >
+                    Día {{ hoveredDay.day }}
+                  </text>
+                  <text
+                    class="chart-tooltip-date"
+                    style="--darkreader-inline-fill: #d5e6df !important; fill: #d5e6df !important"
+                    x="14"
+                    y="42"
+                  >
                     {{ getFormattedSummaryDayDate(hoveredDay.date) }}
                   </text>
-                  <text class="chart-tooltip-value" x="14" y="62">
+                  <text
+                    class="chart-tooltip-value"
+                    style="--darkreader-inline-fill: #ffffff !important; fill: #ffffff !important"
+                    x="14"
+                    y="62"
+                  >
                     {{ hoveredDay.percentage.toFixed(2) }}%
                   </text>
                 </g>
@@ -379,6 +465,7 @@
               @for (tick of xAxisTicks(); track tick.date) {
                 <text
                   class="x-label"
+                  style="--darkreader-inline-fill: #5b676b !important; fill: #5b676b !important"
                   [attr.x]="tick.x"
                   [attr.y]="chartHeight - 14"
                   text-anchor="middle"

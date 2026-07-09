@@ -106,14 +106,36 @@
 .mode-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
+  position: relative;
   gap: 4px;
   margin-bottom: 32px;
   border-radius: 8px;
   background: #eef2f4;
+  overflow: hidden;
   padding: 4px;
 }
 
+.mode-switch::before {
+  position: absolute;
+  z-index: 0;
+  top: 4px;
+  left: 4px;
+  width: calc((100% - 12px) / 2);
+  height: calc(100% - 8px);
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 2px 12px rgba(23, 33, 36, 0.1);
+  content: '';
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.mode-switch.is-register-active::before {
+  transform: translateX(calc(100% + 4px));
+}
+
 .mode-switch button {
+  position: relative;
+  z-index: 1;
   min-height: 42px;
   border: 0;
   border-radius: 6px;
@@ -122,12 +144,11 @@
   cursor: pointer;
   font: inherit;
   font-weight: 800;
+  transition: color 180ms ease;
 }
 
 .mode-switch button.is-active {
-  background: #ffffff;
   color: #0f766e;
-  box-shadow: 0 2px 12px rgba(23, 33, 36, 0.1);
 }
 
 .panel-heading {

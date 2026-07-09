@@ -112,11 +112,32 @@ h1 {
 .dashboard-menu {
   align-self: start;
   display: grid;
+  position: relative;
   gap: 8px;
+  overflow: hidden;
   padding: 10px;
 }
 
+.dashboard-menu::before {
+  position: absolute;
+  z-index: 0;
+  top: 10px;
+  left: 10px;
+  width: calc(100% - 20px);
+  height: 44px;
+  border-radius: 6px;
+  background: #0f766e;
+  content: '';
+  transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dashboard-menu.is-summary-active::before {
+  transform: translateY(52px);
+}
+
 .dashboard-menu button {
+  position: relative;
+  z-index: 1;
   min-height: 44px;
   border: 0;
   border-radius: 6px;
@@ -127,10 +148,15 @@ h1 {
   font-weight: 850;
   padding: 0 12px;
   text-align: left;
+  transition: color 180ms ease;
+}
+
+.dashboard-menu button:not(.is-active):hover {
+  background: #eef2f4;
 }
 
 .dashboard-menu button.is-active {
-  background: #0f766e;
+  background: transparent;
   color: #ffffff;
 }
 
@@ -201,6 +227,13 @@ input:focus {
 small {
   color: #b42318;
   font-weight: 750;
+  line-height: 1.25;
+  min-height: 1.25em;
+  visibility: hidden;
+}
+
+small.is-visible {
+  visibility: visible;
 }
 
 .form-message {
@@ -262,6 +295,14 @@ small {
 
   .dashboard-menu {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .dashboard-menu::before {
+    width: calc((100% - 28px) / 2);
+  }
+
+  .dashboard-menu.is-summary-active::before {
+    transform: translateX(calc(100% + 8px));
   }
 
   .dashboard-menu button {
