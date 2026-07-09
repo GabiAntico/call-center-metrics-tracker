@@ -1,3 +1,417 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import 'tailwindcss';
+
+:root {
+  color-scheme: light;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  background: #f6f7fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  min-width: 320px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.summary-panel {
+  display: grid;
+  gap: 22px;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.08), transparent 44%), #ffffff;
+}
+
+.summary-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.summary-heading h2 {
+  color: #172124;
+  font-size: clamp(1.6rem, 4vw, 2.5rem);
+  line-height: 1.08;
+}
+
+.summary-heading p:last-child {
+  max-width: 620px;
+  margin-top: 10px;
+  color: #5b676b;
+  line-height: 1.55;
+}
+
+.summary-filter-group {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  border-radius: 8px;
+  background: #eef2f4;
+  padding: 4px;
+}
+
+.summary-filter-group button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #5b676b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 850;
+  padding: 0 10px;
+}
+
+.summary-filter-group button.is-active {
+  background: #ffffff;
+  color: #0f766e;
+  box-shadow: 0 2px 12px rgba(23, 33, 36, 0.1);
+}
+
+.month-picker {
+  min-width: 180px;
+}
+
+.month-picker > span {
+  display: block;
+  margin-bottom: 8px;
+  color: #2a3437;
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.month-select {
+  position: relative;
+}
+
+.month-select-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid #cfd8dd;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172124;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 750;
+  padding: 0 14px;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.month-select-button:hover,
+.month-select-button[aria-expanded='true'] {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.12);
+}
+
+.month-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(280px, calc(100vw - 40px));
+  border: 1px solid #dde3e8;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(23, 33, 36, 0.16);
+  padding: 12px;
+}
+
+.month-popover-header {
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.month-popover-header strong {
+  border-radius: 6px;
+  background: #eef2f4;
+  color: #172124;
+  padding: 8px;
+  text-align: center;
+}
+
+.month-popover-header button,
+.month-grid button {
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 850;
+}
+
+.month-popover-header button {
+  min-height: 36px;
+  background: #eef2f4;
+  color: #334044;
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.month-grid button {
+  min-height: 38px;
+  background: transparent;
+  color: #334044;
+}
+
+.month-grid button:hover {
+  background: #eef2f4;
+}
+
+.month-grid button.is-active {
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.summary-state {
+  border-radius: 8px;
+  background: #eef2f4;
+  color: #334044;
+  padding: 18px;
+  font-weight: 850;
+}
+
+.summary-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.summary-kpis div {
+  border: 1px solid #dde3e8;
+  border-radius: 8px;
+  background: #fbfcfd;
+  padding: 16px;
+}
+
+.summary-kpis span,
+.summary-kpis strong {
+  display: block;
+}
+
+.summary-kpis span {
+  color: #5b676b;
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.summary-kpis strong {
+  margin-top: 10px;
+  color: #172124;
+  font-size: clamp(1.65rem, 4vw, 2.4rem);
+  line-height: 1;
+}
+
+.chart-card {
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid #dde3e8;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.summary-chart {
+  display: block;
+  width: 100%;
+  min-width: 620px;
+  height: 340px;
+  cursor: crosshair;
+}
+
+.plot-background {
+  fill: #fbfcfd;
+}
+
+.grid-line {
+  stroke: #dfe6ea;
+  stroke-width: 1;
+}
+
+.chart-area {
+  fill: rgba(15, 118, 110, 0.1);
+}
+
+.chart-line {
+  fill: none;
+  stroke: #0f766e;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.chart-point {
+  fill: #ffffff;
+  stroke: #0f766e;
+  stroke-width: 3;
+}
+
+.chart-hover-line {
+  stroke: #66767a;
+  stroke-linecap: round;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-hover-point {
+  fill: #0f766e;
+  filter: drop-shadow(0 4px 8px rgba(15, 118, 110, 0.24));
+  stroke: #ffffff;
+  stroke-width: 4;
+}
+
+.chart-tooltip {
+  pointer-events: none;
+}
+
+.chart-tooltip-panel {
+  fill: #172124;
+  filter: drop-shadow(0 12px 24px rgba(23, 33, 36, 0.18));
+}
+
+.chart-tooltip-title,
+.chart-tooltip-date,
+.chart-tooltip-value {
+  font-weight: 850;
+}
+
+.chart-tooltip-title {
+  fill: #f6c453;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.chart-tooltip-date {
+  fill: #d5e6df;
+  font-size: 13px;
+}
+
+.chart-tooltip-value {
+  fill: #ffffff;
+  font-size: 18px;
+}
+
+.chart-hover-layer {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.x-label,
+.y-label {
+  fill: #5b676b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.y-label {
+  text-anchor: end;
+}
+
+.summary-table {
+  overflow: hidden;
+  border: 1px solid #dde3e8;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.summary-table-header,
+.summary-table-row {
+  display: grid;
+  grid-template-columns: 0.6fr repeat(3, 1fr) 0.8fr;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.summary-table-header {
+  background: #18332f;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.summary-table-row {
+  color: #334044;
+  font-weight: 750;
+}
+
+.summary-table-row + .summary-table-row {
+  border-top: 1px solid #eef2f4;
+}
+
+.edit-row-button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 6px;
+  background: #0f766e;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 850;
+  padding: 0 12px;
+}
+
+.muted-cell {
+  color: #89959a;
+  font-size: 0.86rem;
+  font-weight: 750;
+}
+
+@media (max-width: 760px) {
+  .summary-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .summary-filter-group {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .summary-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-table {
+    overflow-x: auto;
+  }
+
+  .summary-table-header,
+  .summary-table-row {
+    min-width: 680px;
+  }
+}

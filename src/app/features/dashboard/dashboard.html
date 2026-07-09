@@ -1,0 +1,350 @@
+<main class="dashboard-shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Call Center Metrics</p>
+      <h1>Operación diaria</h1>
+    </div>
+    <button type="button" (click)="signOut()" [disabled]="isSigningOut()">
+      {{ isSigningOut() ? 'Saliendo...' : 'Cerrar sesión' }}
+    </button>
+  </header>
+
+  <section class="welcome-band">
+    <div>
+      <p>Sesión activa</p>
+      <h2>Carga las métricas del día.</h2>
+      @if (userEmail()) {
+        <span>{{ userEmail() }}</span>
+      }
+    </div>
+  </section>
+
+  <section class="workspace">
+    <nav class="dashboard-menu" aria-label="Menú principal">
+      <button
+        type="button"
+        [class.is-active]="activeMenu() === 'daily-entry'"
+        [attr.aria-current]="activeMenu() === 'daily-entry' ? 'page' : null"
+        (click)="setActiveMenu('daily-entry')"
+      >
+        Carga diaria
+      </button>
+      <button
+        type="button"
+        [class.is-active]="activeMenu() === 'summary'"
+        [attr.aria-current]="activeMenu() === 'summary' ? 'page' : null"
+        (click)="setActiveMenu('summary')"
+      >
+        Resumen
+      </button>
+    </nav>
+
+    @if (activeMenu() === 'daily-entry') {
+      <section class="data-panel" aria-labelledby="daily-entry-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Formulario</p>
+            <h2 id="daily-entry-title">
+              {{ editingMetricId() ? 'Editar métricas del día' : 'Métricas de hoy' }}
+            </h2>
+          </div>
+          <span>{{ editingMetricDate() || today }}</span>
+        </div>
+
+        <form [formGroup]="metricsForm" (ngSubmit)="saveMetric()" novalidate>
+          <div class="form-grid">
+            <label>
+              <span>Total de llamadas atendidas</span>
+              <input type="number" min="0" formControlName="total_calls" placeholder="0" />
+              @if (
+                metricsForm.controls.total_calls.touched && metricsForm.controls.total_calls.invalid
+              ) {
+                <small>Este dato es requerido.</small>
+              }
+            </label>
+
+            <label>
+              <span>Total de visitas técnicas</span>
+              <input type="number" min="0" formControlName="technical_visits" placeholder="0" />
+              @if (
+                metricsForm.controls.technical_visits.touched &&
+                metricsForm.controls.technical_visits.invalid
+              ) {
+                <small>Este dato es requerido.</small>
+              }
+            </label>
+
+            <label>
+              <span>Visitas técnicas reagendadas</span>
+              <input type="number" min="0" formControlName="rescheduled_visits" placeholder="0" />
+              @if (
+                metricsForm.controls.rescheduled_visits.touched &&
+                metricsForm.controls.rescheduled_visits.invalid
+              ) {
+                <small>Este dato es requerido.</small>
+              }
+            </label>
+
+            <label>
+              <span>Visitas técnicas de instalaciones</span>
+              <input type="number" min="0" formControlName="installation_visits" placeholder="0" />
+              @if (
+                metricsForm.controls.installation_visits.touched &&
+                metricsForm.controls.installation_visits.invalid
+              ) {
+                <small>Este dato es requerido.</small>
+              }
+            </label>
+          </div>
+
+          @if (metricsForm.touched && metricsForm.hasError('visitBreakdown')) {
+            <p class="form-message is-error" role="alert">
+              Las reagendas e instalaciones no pueden superar el total de visitas técnicas.
+            </p>
+          }
+
+          @if (errorMessage()) {
+            <p class="form-message is-error" role="alert">{{ errorMessage() }}</p>
+          }
+
+          @if (successMessage()) {
+            <p class="form-message is-success" role="status">{{ successMessage() }}</p>
+          }
+
+          <div class="form-actions">
+            @if (editingMetricId()) {
+              <button class="secondary-button" type="button" (click)="cancelMetricEdit()">
+                Cancelar edición
+              </button>
+            }
+            <button type="submit" [disabled]="isSavingMetric()">
+              @if (isSavingMetric()) {
+                Guardando...
+              } @else {
+                {{ editingMetricId() ? 'Actualizar métricas' : 'Guardar métricas' }}
+              }
+            </button>
+          </div>
+        </form>
+      </section>
+    } @else {
+      <section class="data-panel summary-panel" aria-labelledby="summary-title">
+        <div class="summary-heading">
+          <div>
+            <p class="eyebrow">Resumen</p>
+            <h2 id="summary-title">Conversión acumulada del mes</h2>
+            <p>{{ monthRangeLabel() || 'Mes completo seleccionado' }}</p>
+          </div>
+
+          <div class="month-picker">
+            <span>Mes</span>
+            <div class="month-select">
+              <button
+                class="month-select-button"
+                type="button"
+                [attr.aria-expanded]="isSummaryMonthPickerOpen()"
+                aria-haspopup="dialog"
+                (click)="toggleSummaryMonthPicker()"
+              >
+                <span>{{ selectedSummaryMonthLabel() }}</span>
+                <span aria-hidden="true">▾</span>
+              </button>
+
+              @if (isSummaryMonthPickerOpen()) {
+                <div class="month-popover" role="dialog" aria-label="Seleccionar mes">
+                  <div class="month-popover-header">
+                    <button
+                      type="button"
+                      aria-label="Año anterior"
+                      (click)="changeSummaryMonthPickerYear(-1)"
+                    >
+                      &lt;
+                    </button>
+                    <strong>{{ summaryMonthPickerYear() }}</strong>
+                    <button
+                      type="button"
+                      aria-label="Año siguiente"
+                      (click)="changeSummaryMonthPickerYear(1)"
+                    >
+                      &gt;
+                    </button>
+                  </div>
+
+                  <div class="month-grid">
+                    @for (month of monthOptions; track month.value) {
+                      <button
+                        type="button"
+                        [class.is-active]="isSelectedSummaryMonth(month.value)"
+                        (click)="selectSummaryMonth(month.value)"
+                      >
+                        {{ month.shortLabel }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="summary-filter-group"
+          role="group"
+          aria-label="Filtro de visitas para el gráfico"
+        >
+          @for (filter of summaryVisitFilters; track filter.value) {
+            <button
+              type="button"
+              [class.is-active]="selectedSummaryVisitFilter() === filter.value"
+              [attr.aria-pressed]="selectedSummaryVisitFilter() === filter.value"
+              (click)="setSummaryVisitFilter(filter.value)"
+            >
+              {{ filter.label }}
+            </button>
+          }
+        </div>
+
+        @if (isLoadingSummary()) {
+          <div class="summary-state" role="status">Cargando métricas...</div>
+        } @else if (summaryErrorMessage()) {
+          <p class="form-message is-error" role="alert">{{ summaryErrorMessage() }}</p>
+        } @else {
+          <div class="summary-kpis" aria-label="Totales acumulados">
+            <div>
+              <span>Llamadas</span>
+              <strong>{{ summaryTotals().calls }}</strong>
+            </div>
+            <div>
+              <span>Visitas consideradas</span>
+              <strong>{{ summaryTotals().selectedVisits }}</strong>
+            </div>
+            <div>
+              <span>Conversión acumulada</span>
+              <strong>{{ summaryTotals().percentage.toFixed(1) }}%</strong>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <svg
+              class="summary-chart"
+              [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight"
+              preserveAspectRatio="none"
+              role="img"
+              aria-label="Evolución del porcentaje acumulado de visitas técnicas sobre llamadas"
+            >
+              <rect
+                class="plot-background"
+                [attr.x]="chartLeft"
+                [attr.y]="chartTop"
+                [attr.width]="chartWidth - chartLeft - chartRight"
+                [attr.height]="chartHeight - chartTop - chartBottom"
+              />
+
+              @for (tick of chartTicks(); track tick.value) {
+                <line
+                  class="grid-line"
+                  [attr.x1]="chartLeft"
+                  [attr.x2]="chartWidth - chartRight"
+                  [attr.y1]="tick.y"
+                  [attr.y2]="tick.y"
+                />
+                <text class="y-label" [attr.x]="chartLeft - 10" [attr.y]="tick.y + 4">
+                  {{ tick.value.toFixed(0) }}%
+                </text>
+              }
+
+              <path class="chart-area" [attr.d]="chartAreaPath()" />
+              <polyline class="chart-line" [attr.points]="chartLinePoints()" />
+
+              @for (point of summaryDays(); track point.date) {
+                <circle class="chart-point" [attr.cx]="point.x" [attr.cy]="point.y" r="3.6" />
+              }
+
+              @if (hoveredSummaryDay(); as hoveredDay) {
+                <line
+                  class="chart-hover-line"
+                  [attr.x1]="hoveredDay.x"
+                  [attr.x2]="hoveredDay.x"
+                  [attr.y1]="chartTop"
+                  [attr.y2]="chartHeight - chartBottom"
+                />
+                <circle
+                  class="chart-hover-point"
+                  [attr.cx]="hoveredDay.x"
+                  [attr.cy]="hoveredDay.y"
+                  r="6"
+                />
+                <g class="chart-tooltip" [attr.transform]="getChartTooltipTransform(hoveredDay)">
+                  <rect
+                    class="chart-tooltip-panel"
+                    [attr.width]="chartTooltipWidth"
+                    [attr.height]="chartTooltipHeight"
+                    rx="8"
+                    ry="8"
+                  />
+                  <text class="chart-tooltip-title" x="14" y="22">Día {{ hoveredDay.day }}</text>
+                  <text class="chart-tooltip-date" x="14" y="42">
+                    {{ getFormattedSummaryDayDate(hoveredDay.date) }}
+                  </text>
+                  <text class="chart-tooltip-value" x="14" y="62">
+                    {{ hoveredDay.percentage.toFixed(2) }}%
+                  </text>
+                </g>
+              }
+
+              @for (tick of xAxisTicks(); track tick.date) {
+                <text
+                  class="x-label"
+                  [attr.x]="tick.x"
+                  [attr.y]="chartHeight - 14"
+                  text-anchor="middle"
+                >
+                  Día {{ tick.day }}
+                </text>
+              }
+
+              <rect
+                class="chart-hover-layer"
+                [attr.x]="chartLeft"
+                [attr.y]="chartTop"
+                [attr.width]="chartWidth - chartLeft - chartRight"
+                [attr.height]="chartHeight - chartTop - chartBottom"
+                (mousemove)="handleChartPointerMove($event)"
+                (mouseleave)="clearChartHover()"
+              />
+            </svg>
+          </div>
+
+          <div class="summary-table" aria-label="Detalle diario del mes">
+            <div class="summary-table-header">
+              <span>Día</span>
+              <span>Llamadas acum.</span>
+              <span>Visitas consideradas</span>
+              <span>% acum.</span>
+              <span>Acción</span>
+            </div>
+            @for (day of summaryDays(); track day.date) {
+              <div class="summary-table-row">
+                <span>{{ day.day }}</span>
+                <span>{{ day.cumulativeCalls }}</span>
+                <span>{{ day.cumulativeSelectedVisits }}</span>
+                <span>{{ day.percentage.toFixed(1) }}%</span>
+                <span>
+                  @if (day.metricId) {
+                    <button class="edit-row-button" type="button" (click)="startMetricEdit(day)">
+                      Editar
+                    </button>
+                  } @else if (day.hasMetric) {
+                    <span class="muted-cell">Duplicado</span>
+                  } @else {
+                    <span class="muted-cell">--</span>
+                  }
+                </span>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
+  </section>
+</main>
