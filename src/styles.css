@@ -766,7 +766,8 @@ select {
 
 @media (prefers-reduced-motion: reduce) {
   .dashboard-menu::before,
-  .mode-switch::before {
+  .mode-switch::before,
+  .privacy-toolbar::before {
     transition: none;
   }
 }

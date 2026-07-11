@@ -1,0 +1,187 @@
+<main class="privacy-shell">
+  <article class="privacy-card">
+    <div
+      class="privacy-toolbar"
+      [class.is-english-active]="language() === 'en'"
+      aria-label="Idioma de la política"
+    >
+      <button
+        type="button"
+        [class.is-active]="language() === 'es'"
+        [attr.aria-pressed]="language() === 'es'"
+        (click)="setLanguage('es')"
+      >
+        Español
+      </button>
+      <button
+        type="button"
+        [class.is-active]="language() === 'en'"
+        [attr.aria-pressed]="language() === 'en'"
+        (click)="setLanguage('en')"
+      >
+        English
+      </button>
+    </div>
+
+    @if (language() === 'es') {
+      <header class="privacy-header">
+        <p class="eyebrow">Política de privacidad</p>
+        <h1>Call Metrics Logger</h1>
+        <p class="updated">Última actualización: 11 de julio de 2026</p>
+        <p>
+          Call Metrics Logger es una extensión de navegador diseñada para ayudar a equipos de
+          soporte y call center a registrar resultados de llamadas desde un panel lateral del
+          navegador y sincronizar esos registros con el tablero conectado de Call Metrics.
+        </p>
+      </header>
+
+      <section>
+        <h2>Datos recopilados</h2>
+        <p>La extensión puede recopilar los siguientes datos:</p>
+        <ul>
+          <li>Dirección de email, usada únicamente para autenticación mediante Supabase.</li>
+          <li>Datos de sesión de autenticación, usados para mantener la sesión iniciada.</li>
+          <li>
+            Registros de resultados de llamadas creados por el usuario, por ejemplo si una llamada
+            fue normal, derivó en una visita técnica, una reagenda o una instalación.
+          </li>
+          <li>Notas opcionales ingresadas por el usuario.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Datos no recopilados</h2>
+        <p>
+          La extensión no recopila nombres de clientes, números de teléfono, direcciones, números de
+          cuenta, historial de navegación, contenido de sitios web, datos de ubicación, información
+          financiera, información de salud ni comunicaciones personales.
+        </p>
+      </section>
+
+      <section>
+        <h2>Cómo se usan los datos</h2>
+        <p>
+          Los datos recopilados se usan únicamente para autenticar al usuario y sincronizar
+          registros de llamadas con el tablero conectado de Call Metrics. Esto permite revisar
+          totales diarios, tasas de conversión mensuales y tendencias de rendimiento.
+        </p>
+      </section>
+
+      <section>
+        <h2>Compartición de datos</h2>
+        <p>
+          Los datos del usuario no se venden, alquilan, transfieren ni comparten con terceros para
+          publicidad, evaluación crediticia ni fines no relacionados con la herramienta.
+        </p>
+      </section>
+
+      <section>
+        <h2>Almacenamiento y acceso</h2>
+        <p>
+          Los datos de autenticación y los registros de llamadas se almacenan usando Supabase. El
+          acceso a los registros está restringido a usuarios autenticados según las reglas de acceso
+          configuradas en la base de datos.
+        </p>
+      </section>
+
+      <section>
+        <h2>Control del usuario</h2>
+        <p>
+          Los usuarios pueden crear, editar y eliminar sus propios registros de llamadas. También
+          pueden cerrar sesión en la extensión en cualquier momento.
+        </p>
+      </section>
+
+      <section>
+        <h2>Contacto</h2>
+        <p>
+          Para preguntas sobre esta extensión o esta política de privacidad, escribí a
+          <a href="mailto:gabi.antico@gmail.com">gabi.antico@gmail.com</a>.
+        </p>
+      </section>
+
+      <footer>
+        <a routerLink="/auth">Volver al inicio de sesión</a>
+      </footer>
+    } @else {
+      <header class="privacy-header">
+        <p class="eyebrow">Privacy Policy</p>
+        <h1>Call Metrics Logger</h1>
+        <p class="updated">Last updated: July 11, 2026</p>
+        <p>
+          Call Metrics Logger is a browser extension designed to help support and call-center
+          workers record call outcomes from a browser side panel and sync those records with the
+          connected Call Metrics dashboard.
+        </p>
+      </header>
+
+      <section>
+        <h2>Data Collected</h2>
+        <p>The extension may collect the following data:</p>
+        <ul>
+          <li>Email address, used only for user authentication through Supabase.</li>
+          <li>Authentication session data, used to keep the user signed in.</li>
+          <li>
+            Call outcome records created by the user, such as whether a call was a normal call, a
+            technical visit, a reschedule, or an installation.
+          </li>
+          <li>Optional notes entered by the user.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Data Not Collected</h2>
+        <p>
+          The extension does not collect customer names, phone numbers, addresses, account numbers,
+          browsing history, website content, location data, financial information, health
+          information, or personal communications.
+        </p>
+      </section>
+
+      <section>
+        <h2>How Data Is Used</h2>
+        <p>
+          The collected data is used only to authenticate the user and sync call records with the
+          connected Call Metrics dashboard. This allows the user to review daily totals, monthly
+          conversion rates, and performance trends.
+        </p>
+      </section>
+
+      <section>
+        <h2>Data Sharing</h2>
+        <p>
+          User data is not sold, rented, transferred, or shared with third parties for advertising,
+          creditworthiness, or unrelated purposes.
+        </p>
+      </section>
+
+      <section>
+        <h2>Data Storage And Access</h2>
+        <p>
+          Authentication data and call records are stored using Supabase. Access to records is
+          restricted to authenticated users according to the configured database access rules.
+        </p>
+      </section>
+
+      <section>
+        <h2>User Control</h2>
+        <p>
+          Users can create, edit, and delete their own call records. Users can also sign out of the
+          extension at any time.
+        </p>
+      </section>
+
+      <section>
+        <h2>Contact</h2>
+        <p>
+          For questions about this extension or this privacy policy, contact
+          <a href="mailto:gabi.antico@gmail.com">gabi.antico@gmail.com</a>.
+        </p>
+      </section>
+
+      <footer>
+        <a routerLink="/auth">Back to sign in</a>
+      </footer>
+    }
+  </article>
+</main>

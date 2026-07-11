@@ -253,6 +253,24 @@ input + label {
   opacity: 0.68;
 }
 
+.privacy-access {
+  display: block;
+  width: fit-content;
+  margin: 18px auto 0;
+  color: #5b676b;
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.privacy-access:hover,
+.privacy-access:focus-visible {
+  color: #0f766e;
+  outline: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (max-width: 900px) {
   .auth-shell {
     grid-template-columns: 1fr;
