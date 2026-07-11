@@ -22,17 +22,9 @@
   <section class="workspace">
     <nav
       class="dashboard-menu"
-      [class.is-summary-active]="activeMenu() === 'summary'"
+      [class.is-daily-entry-active]="activeMenu() === 'daily-entry'"
       aria-label="Menú principal"
     >
-      <button
-        type="button"
-        [class.is-active]="activeMenu() === 'daily-entry'"
-        [attr.aria-current]="activeMenu() === 'daily-entry' ? 'page' : null"
-        (click)="setActiveMenu('daily-entry')"
-      >
-        Carga diaria
-      </button>
       <button
         type="button"
         [class.is-active]="activeMenu() === 'summary'"
@@ -40,6 +32,14 @@
         (click)="setActiveMenu('summary')"
       >
         Resumen
+      </button>
+      <button
+        type="button"
+        [class.is-active]="activeMenu() === 'daily-entry'"
+        [attr.aria-current]="activeMenu() === 'daily-entry' ? 'page' : null"
+        (click)="setActiveMenu('daily-entry')"
+      >
+        Carga diaria
       </button>
     </nav>
 
@@ -232,53 +232,88 @@
             <p>{{ monthRangeLabel() || 'Mes completo seleccionado' }}</p>
           </div>
 
-          <div class="month-picker">
-            <span>Mes</span>
-            <div class="month-select">
-              <button
-                class="month-select-button"
-                type="button"
-                [attr.aria-expanded]="isSummaryMonthPickerOpen()"
-                aria-haspopup="dialog"
-                (click)="toggleSummaryMonthPicker()"
-              >
-                <span>{{ selectedSummaryMonthLabel() }}</span>
-                <span aria-hidden="true">▾</span>
-              </button>
+          <div class="summary-controls">
+            <div class="source-picker">
+              <span>Datos</span>
+              <div class="source-select">
+                <button
+                  class="source-select-button"
+                  type="button"
+                  [attr.aria-expanded]="isSummaryDataSourcePickerOpen()"
+                  aria-haspopup="listbox"
+                  [disabled]="isLoadingSummary()"
+                  (click)="toggleSummaryDataSourcePicker()"
+                >
+                  <span>{{ selectedSummaryDataSourceLabel() }}</span>
+                  <span aria-hidden="true">▾</span>
+                </button>
 
-              @if (isSummaryMonthPickerOpen()) {
-                <div class="month-popover" role="dialog" aria-label="Seleccionar mes">
-                  <div class="month-popover-header">
-                    <button
-                      type="button"
-                      aria-label="Año anterior"
-                      (click)="changeSummaryMonthPickerYear(-1)"
-                    >
-                      &lt;
-                    </button>
-                    <strong>{{ summaryMonthPickerYear() }}</strong>
-                    <button
-                      type="button"
-                      aria-label="Año siguiente"
-                      (click)="changeSummaryMonthPickerYear(1)"
-                    >
-                      &gt;
-                    </button>
-                  </div>
-
-                  <div class="month-grid">
-                    @for (month of monthOptions; track month.value) {
+                @if (isSummaryDataSourcePickerOpen()) {
+                  <div class="source-popover" role="listbox" aria-label="Seleccionar datos">
+                    @for (source of summaryDataSourceOptions; track source.value) {
                       <button
                         type="button"
-                        [class.is-active]="isSelectedSummaryMonth(month.value)"
-                        (click)="selectSummaryMonth(month.value)"
+                        role="option"
+                        [class.is-active]="selectedSummaryDataSource() === source.value"
+                        [attr.aria-selected]="selectedSummaryDataSource() === source.value"
+                        (click)="selectSummaryDataSource(source.value)"
                       >
-                        {{ month.shortLabel }}
+                        {{ source.label }}
                       </button>
                     }
                   </div>
-                </div>
-              }
+                }
+              </div>
+            </div>
+
+            <div class="month-picker">
+              <span>Mes</span>
+              <div class="month-select">
+                <button
+                  class="month-select-button"
+                  type="button"
+                  [attr.aria-expanded]="isSummaryMonthPickerOpen()"
+                  aria-haspopup="dialog"
+                  (click)="toggleSummaryMonthPicker()"
+                >
+                  <span>{{ selectedSummaryMonthLabel() }}</span>
+                  <span aria-hidden="true">▾</span>
+                </button>
+
+                @if (isSummaryMonthPickerOpen()) {
+                  <div class="month-popover" role="dialog" aria-label="Seleccionar mes">
+                    <div class="month-popover-header">
+                      <button
+                        type="button"
+                        aria-label="Año anterior"
+                        (click)="changeSummaryMonthPickerYear(-1)"
+                      >
+                        &lt;
+                      </button>
+                      <strong>{{ summaryMonthPickerYear() }}</strong>
+                      <button
+                        type="button"
+                        aria-label="Año siguiente"
+                        (click)="changeSummaryMonthPickerYear(1)"
+                      >
+                        &gt;
+                      </button>
+                    </div>
+
+                    <div class="month-grid">
+                      @for (month of monthOptions; track month.value) {
+                        <button
+                          type="button"
+                          [class.is-active]="isSelectedSummaryMonth(month.value)"
+                          (click)="selectSummaryMonth(month.value)"
+                        >
+                          {{ month.shortLabel }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
             </div>
           </div>
         </div>
@@ -501,7 +536,7 @@
                 <span>{{ day.cumulativeSelectedVisits }}</span>
                 <span>{{ day.percentage.toFixed(1) }}%</span>
                 <span>
-                  @if (day.metricId) {
+                  @if (selectedSummaryDataSource() === 'daily_metrics' && day.metricId) {
                     <span class="row-action-group">
                       @if (pendingDeleteMetricId() === day.metricId) {
                         <button
@@ -537,8 +572,10 @@
                         </button>
                       }
                     </span>
-                  } @else if (day.hasMetric) {
+                  } @else if (selectedSummaryDataSource() === 'daily_metrics' && day.hasMetric) {
                     <span class="muted-cell">Duplicado</span>
+                  } @else if (selectedSummaryDataSource() === 'call_records' && day.hasMetric) {
+                    <span class="muted-cell">Solo lectura</span>
                   } @else {
                     <span class="muted-cell">--</span>
                   }

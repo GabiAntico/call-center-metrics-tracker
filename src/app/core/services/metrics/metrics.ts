@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { CreateDailyMetric, DailyMetric } from '../../../models/metrics';
+import { CallRecord, CreateDailyMetric, DailyMetric } from '../../../models/metrics';
 import { Supabase } from '../supabase/supabase';
 
 @Injectable({
@@ -38,11 +38,7 @@ export class MetricsService {
   }
 
   async getMetricsByMonth(year: number, month: number): Promise<DailyMetric[]> {
-    const start = `${year}-${String(month).padStart(2, '0')}-01`;
-
-    const nextMonth = month === 12 ? 1 : month + 1;
-    const nextYear = month === 12 ? year + 1 : year;
-    const end = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+    const { start, end } = this.getMonthRange(year, month);
 
     const { data, error } = await this.supabase.client
       .from('daily_metrics')
@@ -56,6 +52,40 @@ export class MetricsService {
     }
 
     return data as DailyMetric[];
+  }
+
+  async getCallRecordsByMonth(year: number, month: number): Promise<CallRecord[]> {
+    const { start, end } = this.getMonthRange(year, month);
+    const records: CallRecord[] = [];
+    const pageSize = 1000;
+
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await this.supabase.client
+        .from('call_records')
+        .select(
+          'id,user_id,work_date,is_technical_visit,is_rescheduled,is_installation,notes,created_at,updated_at',
+        )
+        .gte('work_date', start)
+        .lt('work_date', end)
+        .order('work_date', { ascending: true })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + pageSize - 1);
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        return records;
+      }
+
+      records.push(...(data as CallRecord[]));
+
+      if (data.length < pageSize) {
+        return records;
+      }
+    }
   }
 
   async getMetricByDate(workDate: string): Promise<DailyMetric | null> {
@@ -94,5 +124,14 @@ export class MetricsService {
     if (error) {
       throw error;
     }
+  }
+
+  private getMonthRange(year: number, month: number): { start: string; end: string } {
+    const start = `${year}-${String(month).padStart(2, '0')}-01`;
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    const end = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+
+    return { start, end };
   }
 }

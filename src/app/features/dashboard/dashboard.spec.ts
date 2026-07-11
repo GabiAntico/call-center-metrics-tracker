@@ -5,9 +5,11 @@ import { MetricsService } from '../../core/services/metrics/metrics';
 import { DashboardComponent } from './dashboard';
 
 describe('DashboardComponent', () => {
+  const summaryDataSourceStorageKey = 'call-center-metrics.summary-data-source';
   let authService: { getUser: ReturnType<typeof vi.fn>; signOut: ReturnType<typeof vi.fn> };
   let metricsService: {
     createMetric: ReturnType<typeof vi.fn>;
+    getCallRecordsByMonth: ReturnType<typeof vi.fn>;
     getMetricByDate: ReturnType<typeof vi.fn>;
     getMetricsByMonth: ReturnType<typeof vi.fn>;
     updateMetric: ReturnType<typeof vi.fn>;
@@ -16,12 +18,15 @@ describe('DashboardComponent', () => {
   let router: { navigateByUrl: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
+    localStorage.removeItem(summaryDataSourceStorageKey);
+
     authService = {
       getUser: vi.fn().mockResolvedValue({ email: 'agent@test.com' }),
       signOut: vi.fn().mockResolvedValue(undefined),
     };
     metricsService = {
       createMetric: vi.fn().mockResolvedValue({}),
+      getCallRecordsByMonth: vi.fn().mockResolvedValue([]),
       getMetricByDate: vi.fn().mockResolvedValue(null),
       getMetricsByMonth: vi.fn().mockResolvedValue([]),
       updateMetric: vi.fn().mockResolvedValue({}),
@@ -46,6 +51,35 @@ describe('DashboardComponent', () => {
     const component = fixture.componentInstance;
 
     expect(component).toBeTruthy();
+  });
+
+  it('should open the summary menu by default and load the monthly summary on init', async () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    await component.ngOnInit();
+
+    expect(component.activeMenu()).toBe('summary');
+    expect(component.selectedSummaryDataSource()).toBe('call_records');
+    expect(metricsService.getCallRecordsByMonth).toHaveBeenCalled();
+  });
+
+  it('should persist the selected summary data source in local storage', () => {
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    component.setSummaryDataSource('daily_metrics');
+
+    expect(localStorage.getItem(summaryDataSourceStorageKey)).toBe('daily_metrics');
+  });
+
+  it('should restore the selected summary data source from local storage', () => {
+    localStorage.setItem(summaryDataSourceStorageKey, 'call_records');
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    expect(component.selectedSummaryDataSource()).toBe('call_records');
+    expect(component.selectedSummaryDataSourceLabel()).toBe('Llamada a llamada');
   });
 
   it('should save daily metrics with the current work date', async () => {
@@ -210,6 +244,7 @@ describe('DashboardComponent', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     const component = fixture.componentInstance;
 
+    component.selectedSummaryDataSource.set('daily_metrics');
     component.selectedSummaryMonth.set('2026-07');
     await component.loadMonthlySummary();
 
@@ -224,6 +259,102 @@ describe('DashboardComponent', () => {
       selectedVisits: 5,
       percentage: 10,
     });
+  });
+
+  it('should calculate cumulative visit percentage from call records', async () => {
+    metricsService.getCallRecordsByMonth.mockResolvedValue([
+      {
+        id: 'call-1',
+        user_id: 'user-1',
+        work_date: '2026-07-01',
+        is_technical_visit: true,
+        is_rescheduled: false,
+        is_installation: false,
+        notes: null,
+        created_at: '2026-07-01T10:00:00Z',
+        updated_at: '2026-07-01T10:00:00Z',
+      },
+      {
+        id: 'call-2',
+        user_id: 'user-1',
+        work_date: '2026-07-01',
+        is_technical_visit: true,
+        is_rescheduled: true,
+        is_installation: false,
+        notes: null,
+        created_at: '2026-07-01T11:00:00Z',
+        updated_at: '2026-07-01T11:00:00Z',
+      },
+      {
+        id: 'call-3',
+        user_id: 'user-1',
+        work_date: '2026-07-01',
+        is_technical_visit: false,
+        is_rescheduled: false,
+        is_installation: false,
+        notes: null,
+        created_at: '2026-07-01T12:00:00Z',
+        updated_at: '2026-07-01T12:00:00Z',
+      },
+      {
+        id: 'call-4',
+        user_id: 'user-1',
+        work_date: '2026-07-02',
+        is_technical_visit: true,
+        is_rescheduled: false,
+        is_installation: true,
+        notes: null,
+        created_at: '2026-07-02T10:00:00Z',
+        updated_at: '2026-07-02T10:00:00Z',
+      },
+      {
+        id: 'call-5',
+        user_id: 'user-1',
+        work_date: '2026-07-02',
+        is_technical_visit: false,
+        is_rescheduled: false,
+        is_installation: false,
+        notes: null,
+        created_at: '2026-07-02T11:00:00Z',
+        updated_at: '2026-07-02T11:00:00Z',
+      },
+    ]);
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    component.selectedSummaryDataSource.set('call_records');
+    component.selectedSummaryMonth.set('2026-07');
+    await component.loadMonthlySummary();
+
+    expect(metricsService.getCallRecordsByMonth).toHaveBeenCalledWith(2026, 7);
+    expect(metricsService.getMetricsByMonth).not.toHaveBeenCalled();
+    expect(component.summaryDays()[0].dailyCalls).toBe(3);
+    expect(component.summaryDays()[0].dailyTechnicalVisits).toBe(2);
+    expect(component.summaryDays()[0].dailyRescheduledVisits).toBe(1);
+    expect(component.summaryDays()[0].metricId).toBeNull();
+    expect(component.summaryDays()[0].percentage).toBeCloseTo(66.67);
+    expect(component.summaryDays()[1].percentage).toBeCloseTo(60);
+    expect(component.summaryTotals()).toEqual({
+      calls: 5,
+      technicalVisits: 3,
+      selectedVisits: 3,
+      percentage: 60,
+    });
+
+    component.setSummaryVisitFilter('without-reschedules');
+
+    expect(component.summaryTotals().selectedVisits).toBe(2);
+    expect(component.summaryTotals().percentage).toBeCloseTo(40);
+
+    component.setSummaryVisitFilter('without-installations');
+
+    expect(component.summaryTotals().selectedVisits).toBe(2);
+    expect(component.summaryTotals().percentage).toBeCloseTo(40);
+
+    component.setSummaryVisitFilter('without-reschedules-installations');
+
+    expect(component.summaryTotals().selectedVisits).toBe(1);
+    expect(component.summaryTotals().percentage).toBeCloseTo(20);
   });
 
   it('should recalculate cumulative percentage when changing visit filters', async () => {
@@ -244,6 +375,7 @@ describe('DashboardComponent', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     const component = fixture.componentInstance;
 
+    component.selectedSummaryDataSource.set('daily_metrics');
     component.selectedSummaryMonth.set('2026-07');
     await component.loadMonthlySummary();
 
@@ -284,6 +416,7 @@ describe('DashboardComponent', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     const component = fixture.componentInstance;
 
+    component.selectedSummaryDataSource.set('daily_metrics');
     component.selectedSummaryMonth.set('2026-07');
     await component.loadMonthlySummary();
     component.activeMenu.set('summary');
@@ -360,6 +493,7 @@ describe('DashboardComponent', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     const component = fixture.componentInstance;
 
+    component.selectedSummaryDataSource.set('daily_metrics');
     component.selectedSummaryMonth.set('2026-07');
     await component.loadMonthlySummary();
     component.startMetricEdit(component.summaryDays()[8]);
@@ -403,6 +537,7 @@ describe('DashboardComponent', () => {
     const fixture = TestBed.createComponent(DashboardComponent);
     const component = fixture.componentInstance;
 
+    component.selectedSummaryDataSource.set('daily_metrics');
     component.selectedSummaryMonth.set('2026-07');
     await component.loadMonthlySummary();
     component.requestMetricDelete(component.summaryDays()[8]);

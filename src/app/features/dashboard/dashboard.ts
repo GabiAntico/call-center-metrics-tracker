@@ -7,17 +7,35 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router } from '@angular/router';
-import { DailyMetric } from '../../models/metrics';
+import { CallRecord } from '../../models/metrics';
 import { AuthService } from '../../core/services/auth/auth';
 import { MetricsService } from '../../core/services/metrics/metrics';
 
 type DashboardMenu = 'daily-entry' | 'summary';
+type SummaryDataSource = 'daily_metrics' | 'call_records';
 type SummaryVisitFilter =
   'total' | 'without-reschedules' | 'without-installations' | 'without-reschedules-installations';
+
+type SummarySelectedVisitsByFilter = Record<SummaryVisitFilter, number>;
+
+interface SummaryDataSourceOption {
+  value: SummaryDataSource;
+  label: string;
+}
 
 interface SummaryVisitFilterOption {
   value: SummaryVisitFilter;
   label: string;
+}
+
+interface SummaryMetricInput {
+  id: string | null;
+  work_date: string;
+  total_calls: number;
+  technical_visits: number;
+  rescheduled_visits: number;
+  installation_visits: number;
+  selectedVisitsByFilter?: SummarySelectedVisitsByFilter;
 }
 
 interface MonthOption {
@@ -73,9 +91,10 @@ export class DashboardComponent implements OnInit {
   private readonly formBuilder = inject(FormBuilder);
   private readonly metricsService = inject(MetricsService);
   private readonly router = inject(Router);
+  private readonly summaryDataSourceStorageKey = 'call-center-metrics.summary-data-source';
 
   readonly userEmail = signal('');
-  readonly activeMenu = signal<DashboardMenu>('daily-entry');
+  readonly activeMenu = signal<DashboardMenu>('summary');
   readonly isSavingMetric = signal(false);
   readonly isSigningOut = signal(false);
   readonly errorMessage = signal('');
@@ -111,6 +130,10 @@ export class DashboardComponent implements OnInit {
     { value: 11, shortLabel: 'Nov', label: 'Noviembre' },
     { value: 12, shortLabel: 'Dic', label: 'Diciembre' },
   ];
+  readonly summaryDataSourceOptions: SummaryDataSourceOption[] = [
+    { value: 'call_records', label: 'Llamada a llamada' },
+    { value: 'daily_metrics', label: 'Carga diaria' },
+  ];
   readonly summaryVisitFilters: SummaryVisitFilterOption[] = [
     { value: 'total', label: 'Total visitas' },
     { value: 'without-reschedules', label: 'Sin reagendas' },
@@ -132,10 +155,18 @@ export class DashboardComponent implements OnInit {
   readonly selectedSummaryMonthLabel = computed(() =>
     this.getSummaryMonthLabel(this.selectedSummaryMonth()),
   );
+  readonly selectedSummaryDataSource = signal<SummaryDataSource>(this.getStoredSummaryDataSource());
+  readonly selectedSummaryDataSourceLabel = computed(
+    () =>
+      this.summaryDataSourceOptions.find(
+        (option) => option.value === this.selectedSummaryDataSource(),
+      )?.label ?? 'Seleccionar datos',
+  );
+  readonly isSummaryDataSourcePickerOpen = signal(false);
   readonly selectedSummaryVisitFilter = signal<SummaryVisitFilter>('total');
   readonly isLoadingSummary = signal(false);
   readonly summaryErrorMessage = signal('');
-  readonly monthlySummaryMetrics = signal<DailyMetric[]>([]);
+  readonly monthlySummaryMetrics = signal<SummaryMetricInput[]>([]);
   readonly summaryDays = signal<SummaryDay[]>([]);
   readonly summaryTotals = signal<SummaryTotals>({
     calls: 0,
@@ -163,6 +194,7 @@ export class DashboardComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     const user = await this.authService.getUser();
     this.userEmail.set(user?.email ?? '');
+    void this.loadMonthlySummary();
   }
 
   setActiveMenu(menu: DashboardMenu): void {
@@ -244,7 +276,7 @@ export class DashboardComponent implements OnInit {
     this.summaryMonthPickerYear.set(year);
 
     try {
-      const metrics = await this.metricsService.getMetricsByMonth(year, month);
+      const metrics = await this.getMonthlySummaryMetrics(year, month);
       this.monthlySummaryMetrics.set(metrics);
       this.buildMonthlySummary(year, month, metrics);
     } catch (error) {
@@ -265,7 +297,32 @@ export class DashboardComponent implements OnInit {
     void this.loadMonthlySummary();
   }
 
+  toggleSummaryDataSourcePicker(): void {
+    if (this.isLoadingSummary()) {
+      return;
+    }
+
+    this.isSummaryMonthPickerOpen.set(false);
+    this.isSummaryDataSourcePickerOpen.update((isOpen) => !isOpen);
+  }
+
+  selectSummaryDataSource(source: SummaryDataSource): void {
+    this.isSummaryDataSourcePickerOpen.set(false);
+    this.setSummaryDataSource(source);
+  }
+
+  setSummaryDataSource(source: SummaryDataSource): void {
+    if (source === this.selectedSummaryDataSource()) {
+      return;
+    }
+
+    this.selectedSummaryDataSource.set(source);
+    this.storeSummaryDataSource(source);
+    void this.loadMonthlySummary();
+  }
+
   toggleSummaryMonthPicker(): void {
+    this.isSummaryDataSourcePickerOpen.set(false);
     this.isSummaryMonthPickerOpen.update((isOpen) => !isOpen);
   }
 
@@ -370,7 +427,7 @@ export class DashboardComponent implements OnInit {
   }
 
   startMetricEdit(day: SummaryDay): void {
-    if (!day.metricId) {
+    if (this.selectedSummaryDataSource() !== 'daily_metrics' || !day.metricId) {
       return;
     }
 
@@ -394,7 +451,7 @@ export class DashboardComponent implements OnInit {
   }
 
   requestMetricDelete(day: SummaryDay): void {
-    if (!day.metricId) {
+    if (this.selectedSummaryDataSource() !== 'daily_metrics' || !day.metricId) {
       return;
     }
 
@@ -408,7 +465,7 @@ export class DashboardComponent implements OnInit {
   }
 
   async confirmMetricDelete(day: SummaryDay): Promise<void> {
-    if (!day.metricId) {
+    if (this.selectedSummaryDataSource() !== 'daily_metrics' || !day.metricId) {
       return;
     }
 
@@ -447,7 +504,7 @@ export class DashboardComponent implements OnInit {
     await this.router.navigateByUrl('/auth');
   }
 
-  private buildMonthlySummary(year: number, month: number, metrics: DailyMetric[]): void {
+  private buildMonthlySummary(year: number, month: number, metrics: SummaryMetricInput[]): void {
     const daysInMonth = new Date(year, month, 0).getDate();
     const dailyTotals = new Map<
       number,
@@ -458,6 +515,7 @@ export class DashboardComponent implements OnInit {
         technicalVisits: number;
         rescheduledVisits: number;
         installationVisits: number;
+        selectedVisits: number;
       }
     >();
     const monthValue = String(month).padStart(2, '0');
@@ -472,6 +530,7 @@ export class DashboardComponent implements OnInit {
         technicalVisits: 0,
         rescheduledVisits: 0,
         installationVisits: 0,
+        selectedVisits: 0,
       };
 
       totals.metricCount += 1;
@@ -480,6 +539,7 @@ export class DashboardComponent implements OnInit {
       totals.technicalVisits += metric.technical_visits;
       totals.rescheduledVisits += metric.rescheduled_visits;
       totals.installationVisits += metric.installation_visits;
+      totals.selectedVisits += this.getSelectedTechnicalVisits(metric, selectedFilter);
       dailyTotals.set(day, totals);
     }
 
@@ -496,8 +556,9 @@ export class DashboardComponent implements OnInit {
         technicalVisits: 0,
         rescheduledVisits: 0,
         installationVisits: 0,
+        selectedVisits: 0,
       };
-      const selectedVisits = this.getFilteredTechnicalVisits(totals, selectedFilter);
+      const selectedVisits = totals.selectedVisits;
       cumulativeCalls += totals.calls;
       cumulativeTechnicalVisits += totals.technicalVisits;
       cumulativeSelectedVisits += selectedVisits;
@@ -534,6 +595,120 @@ export class DashboardComponent implements OnInit {
     this.monthRangeLabel.set(
       `01/${monthValue}/${year} - ${String(daysInMonth).padStart(2, '0')}/${monthValue}/${year}`,
     );
+  }
+
+  private async getMonthlySummaryMetrics(
+    year: number,
+    month: number,
+  ): Promise<SummaryMetricInput[]> {
+    if (this.selectedSummaryDataSource() === 'call_records') {
+      const callRecords = await this.metricsService.getCallRecordsByMonth(year, month);
+
+      return this.buildSummaryMetricsFromCallRecords(callRecords);
+    }
+
+    return this.metricsService.getMetricsByMonth(year, month);
+  }
+
+  private buildSummaryMetricsFromCallRecords(records: CallRecord[]): SummaryMetricInput[] {
+    const metricsByDate = new Map<string, SummaryMetricInput>();
+
+    for (const record of records) {
+      const metric = metricsByDate.get(record.work_date) ?? {
+        id: null,
+        work_date: record.work_date,
+        total_calls: 0,
+        technical_visits: 0,
+        rescheduled_visits: 0,
+        installation_visits: 0,
+        selectedVisitsByFilter: this.getEmptySelectedVisitsByFilter(),
+      };
+
+      metric.total_calls += 1;
+
+      if (record.is_technical_visit) {
+        metric.technical_visits += 1;
+        metric.selectedVisitsByFilter!.total += 1;
+
+        if (!record.is_rescheduled) {
+          metric.selectedVisitsByFilter!['without-reschedules'] += 1;
+        }
+
+        if (!record.is_installation) {
+          metric.selectedVisitsByFilter!['without-installations'] += 1;
+        }
+
+        if (!record.is_rescheduled && !record.is_installation) {
+          metric.selectedVisitsByFilter!['without-reschedules-installations'] += 1;
+        }
+      }
+
+      if (record.is_rescheduled) {
+        metric.rescheduled_visits += 1;
+      }
+
+      if (record.is_installation) {
+        metric.installation_visits += 1;
+      }
+
+      metricsByDate.set(record.work_date, metric);
+    }
+
+    return Array.from(metricsByDate.values()).sort((firstMetric, secondMetric) =>
+      firstMetric.work_date.localeCompare(secondMetric.work_date),
+    );
+  }
+
+  private getEmptySelectedVisitsByFilter(): SummarySelectedVisitsByFilter {
+    return {
+      total: 0,
+      'without-reschedules': 0,
+      'without-installations': 0,
+      'without-reschedules-installations': 0,
+    };
+  }
+
+  private getSelectedTechnicalVisits(
+    metric: SummaryMetricInput,
+    filter: SummaryVisitFilter,
+  ): number {
+    return (
+      metric.selectedVisitsByFilter?.[filter] ??
+      this.getFilteredTechnicalVisits(
+        {
+          technicalVisits: metric.technical_visits,
+          rescheduledVisits: metric.rescheduled_visits,
+          installationVisits: metric.installation_visits,
+        },
+        filter,
+      )
+    );
+  }
+
+  private getStoredSummaryDataSource(): SummaryDataSource {
+    try {
+      const storedSource = globalThis.localStorage?.getItem(this.summaryDataSourceStorageKey);
+
+      if (this.isSummaryDataSource(storedSource)) {
+        return storedSource;
+      }
+    } catch {
+      return 'call_records';
+    }
+
+    return 'call_records';
+  }
+
+  private storeSummaryDataSource(source: SummaryDataSource): void {
+    try {
+      globalThis.localStorage?.setItem(this.summaryDataSourceStorageKey, source);
+    } catch {
+      return;
+    }
+  }
+
+  private isSummaryDataSource(value: string | null | undefined): value is SummaryDataSource {
+    return value === 'daily_metrics' || value === 'call_records';
   }
 
   private clearMetricEditState(): void {

@@ -131,7 +131,7 @@ h1 {
   transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.dashboard-menu.is-summary-active::before {
+.dashboard-menu.is-daily-entry-active::before {
   transform: translateY(52px);
 }
 
@@ -301,7 +301,7 @@ small.is-visible {
     width: calc((100% - 28px) / 2);
   }
 
-  .dashboard-menu.is-summary-active::before {
+  .dashboard-menu.is-daily-entry-active::before {
     transform: translateX(calc(100% + 8px));
   }
 
