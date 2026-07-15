@@ -270,6 +270,10 @@ describe('DashboardComponent', () => {
         is_technical_visit: true,
         is_rescheduled: false,
         is_installation: false,
+        technical_visit_count: 2,
+        regular_visit_count: 2,
+        installation_visit_count: 0,
+        rescheduled_visit_count: 0,
         notes: null,
         created_at: '2026-07-01T10:00:00Z',
         updated_at: '2026-07-01T10:00:00Z',
@@ -281,6 +285,10 @@ describe('DashboardComponent', () => {
         is_technical_visit: true,
         is_rescheduled: true,
         is_installation: false,
+        technical_visit_count: 1,
+        regular_visit_count: 0,
+        installation_visit_count: 0,
+        rescheduled_visit_count: 1,
         notes: null,
         created_at: '2026-07-01T11:00:00Z',
         updated_at: '2026-07-01T11:00:00Z',
@@ -292,6 +300,10 @@ describe('DashboardComponent', () => {
         is_technical_visit: false,
         is_rescheduled: false,
         is_installation: false,
+        technical_visit_count: 0,
+        regular_visit_count: 0,
+        installation_visit_count: 0,
+        rescheduled_visit_count: 0,
         notes: null,
         created_at: '2026-07-01T12:00:00Z',
         updated_at: '2026-07-01T12:00:00Z',
@@ -303,6 +315,10 @@ describe('DashboardComponent', () => {
         is_technical_visit: true,
         is_rescheduled: false,
         is_installation: true,
+        technical_visit_count: 2,
+        regular_visit_count: 1,
+        installation_visit_count: 1,
+        rescheduled_visit_count: 0,
         notes: null,
         created_at: '2026-07-02T10:00:00Z',
         updated_at: '2026-07-02T10:00:00Z',
@@ -314,6 +330,10 @@ describe('DashboardComponent', () => {
         is_technical_visit: false,
         is_rescheduled: false,
         is_installation: false,
+        technical_visit_count: 0,
+        regular_visit_count: 0,
+        installation_visit_count: 0,
+        rescheduled_visit_count: 0,
         notes: null,
         created_at: '2026-07-02T11:00:00Z',
         updated_at: '2026-07-02T11:00:00Z',
@@ -329,32 +349,32 @@ describe('DashboardComponent', () => {
     expect(metricsService.getCallRecordsByMonth).toHaveBeenCalledWith(2026, 7);
     expect(metricsService.getMetricsByMonth).not.toHaveBeenCalled();
     expect(component.summaryDays()[0].dailyCalls).toBe(3);
-    expect(component.summaryDays()[0].dailyTechnicalVisits).toBe(2);
+    expect(component.summaryDays()[0].dailyTechnicalVisits).toBe(3);
     expect(component.summaryDays()[0].dailyRescheduledVisits).toBe(1);
     expect(component.summaryDays()[0].metricId).toBeNull();
-    expect(component.summaryDays()[0].percentage).toBeCloseTo(66.67);
-    expect(component.summaryDays()[1].percentage).toBeCloseTo(60);
+    expect(component.summaryDays()[0].percentage).toBeCloseTo(100);
+    expect(component.summaryDays()[1].percentage).toBeCloseTo(100);
     expect(component.summaryTotals()).toEqual({
       calls: 5,
-      technicalVisits: 3,
-      selectedVisits: 3,
-      percentage: 60,
+      technicalVisits: 5,
+      selectedVisits: 5,
+      percentage: 100,
     });
 
     component.setSummaryVisitFilter('without-reschedules');
 
-    expect(component.summaryTotals().selectedVisits).toBe(2);
-    expect(component.summaryTotals().percentage).toBeCloseTo(40);
+    expect(component.summaryTotals().selectedVisits).toBe(4);
+    expect(component.summaryTotals().percentage).toBeCloseTo(80);
 
     component.setSummaryVisitFilter('without-installations');
 
-    expect(component.summaryTotals().selectedVisits).toBe(2);
-    expect(component.summaryTotals().percentage).toBeCloseTo(40);
+    expect(component.summaryTotals().selectedVisits).toBe(4);
+    expect(component.summaryTotals().percentage).toBeCloseTo(80);
 
     component.setSummaryVisitFilter('without-reschedules-installations');
 
-    expect(component.summaryTotals().selectedVisits).toBe(1);
-    expect(component.summaryTotals().percentage).toBeCloseTo(20);
+    expect(component.summaryTotals().selectedVisits).toBe(3);
+    expect(component.summaryTotals().percentage).toBeCloseTo(60);
   });
 
   it('should recalculate cumulative percentage when changing visit filters', async () => {

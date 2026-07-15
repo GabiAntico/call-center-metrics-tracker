@@ -34,6 +34,11 @@ export interface CallRecord {
   is_rescheduled: boolean;
   is_installation: boolean;
 
+  technical_visit_count: number;
+  regular_visit_count: number;
+  installation_visit_count: number;
+  rescheduled_visit_count: number;
+
   notes: string | null;
 
   created_at: string;

@@ -63,7 +63,7 @@ export class MetricsService {
       const { data, error } = await this.supabase.client
         .from('call_records')
         .select(
-          'id,user_id,work_date,is_technical_visit,is_rescheduled,is_installation,notes,created_at,updated_at',
+          'id,user_id,work_date,is_technical_visit,is_rescheduled,is_installation,technical_visit_count,regular_visit_count,installation_visit_count,rescheduled_visit_count,notes,created_at,updated_at',
         )
         .gte('work_date', start)
         .lt('work_date', end)

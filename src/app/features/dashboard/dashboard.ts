@@ -626,30 +626,20 @@ export class DashboardComponent implements OnInit {
 
       metric.total_calls += 1;
 
-      if (record.is_technical_visit) {
-        metric.technical_visits += 1;
-        metric.selectedVisitsByFilter!.total += 1;
+      const technicalVisitCount = this.getSafeVisitCount(record.technical_visit_count);
+      const regularVisitCount = this.getSafeVisitCount(record.regular_visit_count);
+      const installationVisitCount = this.getSafeVisitCount(record.installation_visit_count);
+      const rescheduledVisitCount = this.getSafeVisitCount(record.rescheduled_visit_count);
 
-        if (!record.is_rescheduled) {
-          metric.selectedVisitsByFilter!['without-reschedules'] += 1;
-        }
-
-        if (!record.is_installation) {
-          metric.selectedVisitsByFilter!['without-installations'] += 1;
-        }
-
-        if (!record.is_rescheduled && !record.is_installation) {
-          metric.selectedVisitsByFilter!['without-reschedules-installations'] += 1;
-        }
-      }
-
-      if (record.is_rescheduled) {
-        metric.rescheduled_visits += 1;
-      }
-
-      if (record.is_installation) {
-        metric.installation_visits += 1;
-      }
+      metric.technical_visits += technicalVisitCount;
+      metric.rescheduled_visits += rescheduledVisitCount;
+      metric.installation_visits += installationVisitCount;
+      metric.selectedVisitsByFilter!.total += technicalVisitCount;
+      metric.selectedVisitsByFilter!['without-reschedules'] +=
+        regularVisitCount + installationVisitCount;
+      metric.selectedVisitsByFilter!['without-installations'] +=
+        regularVisitCount + rescheduledVisitCount;
+      metric.selectedVisitsByFilter!['without-reschedules-installations'] += regularVisitCount;
 
       metricsByDate.set(record.work_date, metric);
     }
@@ -683,6 +673,10 @@ export class DashboardComponent implements OnInit {
         filter,
       )
     );
+  }
+
+  private getSafeVisitCount(count: number): number {
+    return Number.isFinite(count) ? Math.max(0, count) : 0;
   }
 
   private getStoredSummaryDataSource(): SummaryDataSource {
