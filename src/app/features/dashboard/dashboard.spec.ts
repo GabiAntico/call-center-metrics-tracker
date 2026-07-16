@@ -377,6 +377,141 @@ describe('DashboardComponent', () => {
     expect(component.summaryTotals().percentage).toBeCloseTo(60);
   });
 
+  it('should calculate and filter cumulative transfers from call records', async () => {
+    const baseCallRecord = {
+      user_id: 'user-1',
+      is_technical_visit: false,
+      is_rescheduled: false,
+      is_installation: false,
+      technical_visit_count: 0,
+      regular_visit_count: 0,
+      installation_visit_count: 0,
+      rescheduled_visit_count: 0,
+      is_transferred: false,
+      transfer_area: null,
+      notes: null,
+      created_at: '2026-07-01T10:00:00Z',
+      updated_at: '2026-07-01T10:00:00Z',
+    };
+    metricsService.getCallRecordsByMonth.mockResolvedValue([
+      {
+        ...baseCallRecord,
+        id: 'call-1',
+        work_date: '2026-07-01',
+        is_transferred: true,
+        transfer_area: 'commercial',
+      },
+      {
+        ...baseCallRecord,
+        id: 'call-2',
+        work_date: '2026-07-01',
+        is_transferred: true,
+        transfer_area: 'retention',
+      },
+      { ...baseCallRecord, id: 'call-3', work_date: '2026-07-01' },
+      {
+        ...baseCallRecord,
+        id: 'call-4',
+        work_date: '2026-07-02',
+        is_transferred: true,
+        transfer_area: 'other',
+      },
+      { ...baseCallRecord, id: 'call-5', work_date: '2026-07-02' },
+    ]);
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    component.activeMenu.set('transfers');
+    component.selectedSummaryMonth.set('2026-07');
+    await component.loadMonthlySummary();
+    fixture.detectChanges();
+
+    expect(metricsService.getCallRecordsByMonth).toHaveBeenCalledWith(2026, 7);
+    expect(metricsService.getMetricsByMonth).not.toHaveBeenCalled();
+    expect(component.summaryDays()[0].dailyCalls).toBe(3);
+    expect(component.summaryDays()[0].dailySelectedVisits).toBe(2);
+    expect(component.summaryDays()[0].percentage).toBeCloseTo(66.67, 1);
+    expect(component.summaryTotals()).toEqual({
+      calls: 5,
+      technicalVisits: 3,
+      selectedVisits: 3,
+      percentage: 60,
+    });
+    expect(fixture.nativeElement.textContent).toContain('Tasa acumulada de transferencias');
+    expect(fixture.nativeElement.querySelector('.source-picker')).toBeNull();
+
+    component.setTransferAreaFilter('commercial');
+    expect(component.summaryTotals().selectedVisits).toBe(1);
+    expect(component.summaryTotals().percentage).toBeCloseTo(20);
+
+    component.setTransferAreaFilter('retention');
+    expect(component.summaryTotals().selectedVisits).toBe(1);
+    expect(component.summaryTotals().percentage).toBeCloseTo(20);
+
+    component.setTransferAreaFilter('other');
+    expect(component.summaryTotals().selectedVisits).toBe(1);
+    expect(component.summaryTotals().percentage).toBeCloseTo(20);
+  });
+
+  it('should ignore an outdated summary response after changing menus', async () => {
+    let resolveDailyMetrics: (metrics: unknown[]) => void = () => undefined;
+    metricsService.getMetricsByMonth.mockReturnValue(
+      new Promise((resolve) => {
+        resolveDailyMetrics = resolve;
+      }),
+    );
+    metricsService.getCallRecordsByMonth.mockResolvedValue([
+      {
+        id: 'call-1',
+        user_id: 'user-1',
+        work_date: '2026-07-01',
+        is_technical_visit: false,
+        is_rescheduled: false,
+        is_installation: false,
+        technical_visit_count: 0,
+        regular_visit_count: 0,
+        installation_visit_count: 0,
+        rescheduled_visit_count: 0,
+        is_transferred: true,
+        transfer_area: 'commercial',
+        notes: null,
+        created_at: '2026-07-01T10:00:00Z',
+        updated_at: '2026-07-01T10:00:00Z',
+      },
+    ]);
+    const fixture = TestBed.createComponent(DashboardComponent);
+    const component = fixture.componentInstance;
+
+    component.selectedSummaryDataSource.set('daily_metrics');
+    component.selectedSummaryMonth.set('2026-07');
+    const outdatedLoad = component.loadMonthlySummary();
+
+    component.activeMenu.set('transfers');
+    await component.loadMonthlySummary();
+
+    expect(component.summaryTotals().selectedVisits).toBe(1);
+    expect(component.summaryTotals().percentage).toBe(100);
+
+    resolveDailyMetrics([
+      {
+        id: 'metric-1',
+        user_id: 'user-1',
+        work_date: '2026-07-01',
+        total_calls: 10,
+        technical_visits: 0,
+        rescheduled_visits: 0,
+        installation_visits: 0,
+        notes: null,
+        created_at: '2026-07-01T00:00:00Z',
+        updated_at: '2026-07-01T00:00:00Z',
+      },
+    ]);
+    await outdatedLoad;
+
+    expect(component.summaryTotals().selectedVisits).toBe(1);
+    expect(component.summaryTotals().percentage).toBe(100);
+  });
+
   it('should recalculate cumulative percentage when changing visit filters', async () => {
     metricsService.getMetricsByMonth.mockResolvedValue([
       {

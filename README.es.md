@@ -2,7 +2,7 @@
 
 [English](./README.md)
 
-Call Center Metrics es una aplicación Angular de una sola página para registrar la actividad diaria de un call center sin construir ni mantener un backend propio. Usa Supabase para autenticación y persistencia en base de datos, para que un equipo operativo pueda cargar métricas diarias, revisar la conversión acumulada del mes y entender cómo evolucionan las visitas técnicas respecto de las llamadas atendidas.
+Call Center Metrics es una aplicación Angular de una sola página para registrar la actividad diaria de un call center sin construir ni mantener un backend propio. Usa Supabase para autenticación y persistencia en base de datos, para que un equipo operativo pueda cargar métricas diarias, revisar la conversión acumulada del mes y entender cómo evolucionan las visitas técnicas y las transferencias respecto de las llamadas atendidas.
 
 ## El Problema Que Resuelve
 
@@ -20,6 +20,7 @@ Este proyecto convierte ese flujo en una app enfocada:
 - Supabase guarda los datos por usuario autenticado.
 - La vista de resumen calcula la conversión acumulada del mes calendario seleccionado.
 - El gráfico permite ver cambios de tendencia de inmediato, incluyendo filtros que quitan reagendas, instalaciones o ambos del numerador.
+- Una vista separada de transferencias permite medir el total y filtrarlo por Comercial, Retención u Otras.
 
 ## Flujo Principal
 
@@ -33,6 +34,7 @@ Este proyecto convierte ese flujo en una app enfocada:
 4. La app evita que desde el formulario se cree un segundo registro para el día actual cuando ya existe uno.
 5. Si se cargó mal un valor, el usuario puede editar ese día desde la tabla del resumen mensual.
 6. El menú "Resumen" muestra un gráfico y una tabla del mes completo seleccionado.
+7. El menú "Transferencias" usa los registros llamada a llamada para mostrar la tasa acumulada y filtrarla por sector de destino.
 
 ## Cálculo De Conversión
 
@@ -55,6 +57,8 @@ Filtros disponibles para el gráfico:
 
 El gráfico también incluye una experiencia interactiva: al mover el mouse sobre el gráfico, se selecciona el día más cercano, aparece una línea vertical de guía y se muestra la fecha y el porcentaje exactos.
 
+El gráfico de transferencias sigue el mismo modelo acumulado de mes completo: cantidad de llamadas transferidas dividida por todas las llamadas atendidas registradas hasta ese día del mes seleccionado. Cada llamada puede aportar como máximo una transferencia y la vista permite mostrar todas o solo las destinadas a Comercial, Retención u Otras.
+
 ## Funcionalidades
 
 - Autenticación con email y contraseña mediante Supabase.
@@ -67,6 +71,7 @@ El gráfico también incluye una experiencia interactiva: al mover el mouse sobr
 - Controles de filtro para distintas definiciones del numerador.
 - Tooltip interactivo en el gráfico con día, fecha y porcentaje exactos.
 - Tabla mensual con llamadas acumuladas, visitas consideradas y conversión.
+- Gráfico acumulado de transferencias separado, con filtros por sector de destino.
 - Soporte para redirects de SPA en Netlify mediante `public/_redirects`.
 - Ícono del navegador en `public/favicon.ico`.
 
@@ -85,11 +90,11 @@ El gráfico también incluye una experiencia interactiva: al mover el mouse sobr
 
 ```text
 src/app/core/services/auth/       Wrapper de autenticación con Supabase
-src/app/core/services/metrics/    Operaciones de base de datos para métricas diarias
+src/app/core/services/metrics/    Operaciones de base de datos para métricas y llamadas
 src/app/core/services/supabase/   Creación del cliente de Supabase
 src/app/features/auth/            Pantalla de login y registro
-src/app/features/dashboard/       Formulario diario, gráfico, tabla y edición
-src/app/models/metrics.ts         Interfaces de métricas diarias
+src/app/features/dashboard/       Formulario, gráficos de visitas y transferencias, tablas y edición
+src/app/models/metrics.ts         Interfaces de métricas diarias y registros de llamadas
 src/environments/environment.ts   Configuración del proyecto Supabase
 public/_redirects                 Regla de redirect de Netlify para rutas Angular
 public/favicon.ico                Ícono de la pestaña del navegador
@@ -99,6 +104,7 @@ public/favicon.ico                Ícono de la pestaña del navegador
 
 - `/auth`: pantalla de login y registro.
 - `/dashboard`: dashboard protegido.
+- `/privacy`: política de privacidad bilingüe y pública.
 - `/`: redirige a `/dashboard`; los usuarios no autenticados son enviados a `/auth`.
 - Cualquier ruta desconocida redirige a `/auth`.
 
@@ -106,7 +112,7 @@ public/favicon.ico                Ícono de la pestaña del navegador
 
 La aplicación está conectada con Supabase para autenticación y persistencia. Supabase reemplaza un backend propio en este proyecto: la app Angular autentica usuarios, lee y escribe métricas diarias, y depende de reglas de acceso en la base de datos para proteger los datos operativos.
 
-La base de datos guarda un registro diario de métricas por usuario autenticado y fecha de trabajo. Los detalles sensibles de implementación, como la definición completa de la tabla, constraints y policies de Row Level Security, se mantienen intencionalmente fuera de esta documentación pública. Deberían vivir en la configuración del proyecto Supabase o en notas internas de despliegue.
+La base de datos guarda métricas diarias y registros individuales de llamadas para usuarios autenticados. Los registros de llamadas admiten cantidades de visitas técnicas y como máximo una transferencia clasificada por destino por llamada. Los detalles sensibles de implementación, como la definición completa de la tabla, constraints y policies de Row Level Security, se mantienen intencionalmente fuera de esta documentación pública. Deberían vivir en la configuración del proyecto Supabase o en notas internas de despliegue.
 
 A nivel producto, la capa de datos debe garantizar:
 

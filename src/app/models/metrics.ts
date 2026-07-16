@@ -39,6 +39,9 @@ export interface CallRecord {
   installation_visit_count: number;
   rescheduled_visit_count: number;
 
+  is_transferred: boolean;
+  transfer_area: 'commercial' | 'retention' | 'other' | null;
+
   notes: string | null;
 
   created_at: string;

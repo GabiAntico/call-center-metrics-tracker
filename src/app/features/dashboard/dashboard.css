@@ -131,10 +131,6 @@ h1 {
   transition: transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.dashboard-menu.is-daily-entry-active::before {
-  transform: translateY(52px);
-}
-
 .dashboard-menu button {
   position: relative;
   z-index: 1;
@@ -294,15 +290,11 @@ small.is-visible {
   }
 
   .dashboard-menu {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .dashboard-menu::before {
-    width: calc((100% - 28px) / 2);
-  }
-
-  .dashboard-menu.is-daily-entry-active::before {
-    transform: translateX(calc(100% + 8px));
+    width: calc((100% - 36px) / 3);
   }
 
   .dashboard-menu button {

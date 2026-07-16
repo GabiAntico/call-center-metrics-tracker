@@ -11,12 +11,14 @@ import { CallRecord } from '../../models/metrics';
 import { AuthService } from '../../core/services/auth/auth';
 import { MetricsService } from '../../core/services/metrics/metrics';
 
-type DashboardMenu = 'daily-entry' | 'summary';
+type DashboardMenu = 'daily-entry' | 'summary' | 'transfers';
 type SummaryDataSource = 'daily_metrics' | 'call_records';
 type SummaryVisitFilter =
   'total' | 'without-reschedules' | 'without-installations' | 'without-reschedules-installations';
+type TransferAreaFilter = 'all' | 'commercial' | 'retention' | 'other';
 
 type SummarySelectedVisitsByFilter = Record<SummaryVisitFilter, number>;
+type TransferCountsByArea = Record<TransferAreaFilter, number>;
 
 interface SummaryDataSourceOption {
   value: SummaryDataSource;
@@ -28,6 +30,11 @@ interface SummaryVisitFilterOption {
   label: string;
 }
 
+interface TransferAreaFilterOption {
+  value: TransferAreaFilter;
+  label: string;
+}
+
 interface SummaryMetricInput {
   id: string | null;
   work_date: string;
@@ -36,6 +43,7 @@ interface SummaryMetricInput {
   rescheduled_visits: number;
   installation_visits: number;
   selectedVisitsByFilter?: SummarySelectedVisitsByFilter;
+  transferCountsByArea?: TransferCountsByArea;
 }
 
 interface MonthOption {
@@ -92,6 +100,7 @@ export class DashboardComponent implements OnInit {
   private readonly metricsService = inject(MetricsService);
   private readonly router = inject(Router);
   private readonly summaryDataSourceStorageKey = 'call-center-metrics.summary-data-source';
+  private summaryLoadRequestId = 0;
 
   readonly userEmail = signal('');
   readonly activeMenu = signal<DashboardMenu>('summary');
@@ -140,6 +149,12 @@ export class DashboardComponent implements OnInit {
     { value: 'without-installations', label: 'Sin instalaciones' },
     { value: 'without-reschedules-installations', label: 'Sin reagendas ni instalaciones' },
   ];
+  readonly transferAreaFilters: TransferAreaFilterOption[] = [
+    { value: 'all', label: 'Todas' },
+    { value: 'commercial', label: 'Comercial' },
+    { value: 'retention', label: 'Retención' },
+    { value: 'other', label: 'Otras' },
+  ];
   readonly selectedSummaryMonth = signal(this.today.slice(0, 7));
   readonly summaryMonthPickerYear = signal(Number(this.today.slice(0, 4)));
   readonly isSummaryMonthPickerOpen = signal(false);
@@ -164,6 +179,7 @@ export class DashboardComponent implements OnInit {
   );
   readonly isSummaryDataSourcePickerOpen = signal(false);
   readonly selectedSummaryVisitFilter = signal<SummaryVisitFilter>('total');
+  readonly selectedTransferAreaFilter = signal<TransferAreaFilter>('all');
   readonly isLoadingSummary = signal(false);
   readonly summaryErrorMessage = signal('');
   readonly monthlySummaryMetrics = signal<SummaryMetricInput[]>([]);
@@ -199,8 +215,11 @@ export class DashboardComponent implements OnInit {
 
   setActiveMenu(menu: DashboardMenu): void {
     this.activeMenu.set(menu);
+    this.isSummaryDataSourcePickerOpen.set(false);
+    this.isSummaryMonthPickerOpen.set(false);
+    this.clearChartHover();
 
-    if (menu === 'summary' && this.summaryDays().length === 0) {
+    if (menu === 'summary' || menu === 'transfers') {
       void this.loadMonthlySummary();
     }
   }
@@ -271,18 +290,31 @@ export class DashboardComponent implements OnInit {
       return;
     }
 
+    const requestId = ++this.summaryLoadRequestId;
+    const menu = this.activeMenu();
+    const dataSource = this.selectedSummaryDataSource();
+
     this.isLoadingSummary.set(true);
     this.summaryErrorMessage.set('');
     this.summaryMonthPickerYear.set(year);
 
     try {
-      const metrics = await this.getMonthlySummaryMetrics(year, month);
+      const metrics = await this.getMonthlySummaryMetrics(year, month, menu, dataSource);
+
+      if (requestId !== this.summaryLoadRequestId) {
+        return;
+      }
+
       this.monthlySummaryMetrics.set(metrics);
       this.buildMonthlySummary(year, month, metrics);
     } catch (error) {
-      this.summaryErrorMessage.set(this.getFriendlyError(error));
+      if (requestId === this.summaryLoadRequestId) {
+        this.summaryErrorMessage.set(this.getFriendlyError(error));
+      }
     } finally {
-      this.isLoadingSummary.set(false);
+      if (requestId === this.summaryLoadRequestId) {
+        this.isLoadingSummary.set(false);
+      }
     }
   }
 
@@ -346,6 +378,17 @@ export class DashboardComponent implements OnInit {
 
   setSummaryVisitFilter(filter: SummaryVisitFilter): void {
     this.selectedSummaryVisitFilter.set(filter);
+    const [year, month] = this.selectedSummaryMonth().split('-').map(Number);
+
+    if (!year || !month) {
+      return;
+    }
+
+    this.buildMonthlySummary(year, month, this.monthlySummaryMetrics());
+  }
+
+  setTransferAreaFilter(filter: TransferAreaFilter): void {
+    this.selectedTransferAreaFilter.set(filter);
     const [year, month] = this.selectedSummaryMonth().split('-').map(Number);
 
     if (!year || !month) {
@@ -519,7 +562,6 @@ export class DashboardComponent implements OnInit {
       }
     >();
     const monthValue = String(month).padStart(2, '0');
-    const selectedFilter = this.selectedSummaryVisitFilter();
 
     for (const metric of metrics) {
       const day = Number(metric.work_date.slice(8, 10));
@@ -536,10 +578,10 @@ export class DashboardComponent implements OnInit {
       totals.metricCount += 1;
       totals.metricId = totals.metricCount === 1 ? metric.id : null;
       totals.calls += metric.total_calls;
-      totals.technicalVisits += metric.technical_visits;
+      totals.technicalVisits += this.getTotalSummaryCount(metric);
       totals.rescheduledVisits += metric.rescheduled_visits;
       totals.installationVisits += metric.installation_visits;
-      totals.selectedVisits += this.getSelectedTechnicalVisits(metric, selectedFilter);
+      totals.selectedVisits += this.getSelectedSummaryCount(metric);
       dailyTotals.set(day, totals);
     }
 
@@ -600,8 +642,10 @@ export class DashboardComponent implements OnInit {
   private async getMonthlySummaryMetrics(
     year: number,
     month: number,
+    menu: DashboardMenu,
+    dataSource: SummaryDataSource,
   ): Promise<SummaryMetricInput[]> {
-    if (this.selectedSummaryDataSource() === 'call_records') {
+    if (menu === 'transfers' || dataSource === 'call_records') {
       const callRecords = await this.metricsService.getCallRecordsByMonth(year, month);
 
       return this.buildSummaryMetricsFromCallRecords(callRecords);
@@ -622,6 +666,7 @@ export class DashboardComponent implements OnInit {
         rescheduled_visits: 0,
         installation_visits: 0,
         selectedVisitsByFilter: this.getEmptySelectedVisitsByFilter(),
+        transferCountsByArea: this.getEmptyTransferCountsByArea(),
       };
 
       metric.total_calls += 1;
@@ -641,6 +686,14 @@ export class DashboardComponent implements OnInit {
         regularVisitCount + rescheduledVisitCount;
       metric.selectedVisitsByFilter!['without-reschedules-installations'] += regularVisitCount;
 
+      if (record.is_transferred) {
+        metric.transferCountsByArea!.all += 1;
+
+        if (record.transfer_area) {
+          metric.transferCountsByArea![record.transfer_area] += 1;
+        }
+      }
+
       metricsByDate.set(record.work_date, metric);
     }
 
@@ -656,6 +709,29 @@ export class DashboardComponent implements OnInit {
       'without-installations': 0,
       'without-reschedules-installations': 0,
     };
+  }
+
+  private getEmptyTransferCountsByArea(): TransferCountsByArea {
+    return {
+      all: 0,
+      commercial: 0,
+      retention: 0,
+      other: 0,
+    };
+  }
+
+  private getSelectedSummaryCount(metric: SummaryMetricInput): number {
+    if (this.activeMenu() === 'transfers') {
+      return metric.transferCountsByArea?.[this.selectedTransferAreaFilter()] ?? 0;
+    }
+
+    return this.getSelectedTechnicalVisits(metric, this.selectedSummaryVisitFilter());
+  }
+
+  private getTotalSummaryCount(metric: SummaryMetricInput): number {
+    return this.activeMenu() === 'transfers'
+      ? (metric.transferCountsByArea?.all ?? 0)
+      : metric.technical_visits;
   }
 
   private getSelectedTechnicalVisits(

@@ -2,7 +2,7 @@
 
 [Español](./README.es.md)
 
-Call Center Metrics is an Angular single-page application for tracking daily call-center activity without building or maintaining a custom backend. It uses Supabase for authentication and database persistence, so a small operations team can record daily metrics, review month-to-date conversion, and understand how technical visits evolve against handled calls.
+Call Center Metrics is an Angular single-page application for tracking daily call-center activity without building or maintaining a custom backend. It uses Supabase for authentication and database persistence, so a small operations team can record daily metrics, review month-to-date conversion, and understand how technical visits and call transfers evolve against handled calls.
 
 ## The Problem It Solves
 
@@ -20,6 +20,7 @@ This project turns that workflow into a focused app:
 - Supabase stores the data per authenticated user.
 - The summary view calculates cumulative conversion for the selected calendar month.
 - The chart makes trend changes visible immediately, including filtered views that remove reschedules, installations, or both from the numerator.
+- A separate transfers view tracks total transfers and filters them by Commercial, Retention, or Other.
 
 ## Core Workflow
 
@@ -33,6 +34,7 @@ This project turns that workflow into a focused app:
 4. The app prevents a second daily record from being created from the form when a record already exists for today.
 5. If a value was entered incorrectly, the user can edit that day from the monthly summary table.
 6. The "Resumen" menu shows a full-month chart and table for the selected month.
+7. The "Transferencias" menu uses call-by-call records to show the cumulative transfer rate and filter it by destination area.
 
 ## Conversion Calculation
 
@@ -55,6 +57,8 @@ Available chart filters:
 
 The graph also includes an interactive hover experience: moving the mouse over the chart snaps to the nearest day, shows a vertical guide line, and displays the exact date and percentage.
 
+The transfers chart follows the same full-month cumulative model: transferred calls divided by all handled calls recorded so far in the selected month. Each call can contribute at most one transfer, and the view can show all transfers or only Commercial, Retention, or Other destinations.
+
 ## Features
 
 - Supabase email/password authentication.
@@ -67,6 +71,7 @@ The graph also includes an interactive hover experience: moving the mouse over t
 - Visit filter controls for alternate numerator definitions.
 - Interactive chart tooltip with exact day, date, and percentage.
 - Monthly table with cumulative calls, considered visits, and conversion.
+- Separate cumulative transfers chart with destination-area filters.
 - Netlify SPA redirect support through `public/_redirects`.
 - Browser favicon in `public/favicon.ico`.
 
@@ -85,11 +90,11 @@ The graph also includes an interactive hover experience: moving the mouse over t
 
 ```text
 src/app/core/services/auth/       Supabase authentication wrapper
-src/app/core/services/metrics/    Daily metrics database operations
+src/app/core/services/metrics/    Daily metrics and call-record database operations
 src/app/core/services/supabase/   Supabase client creation
 src/app/features/auth/            Login and register screen
-src/app/features/dashboard/       Daily form, summary chart, table, editing flow
-src/app/models/metrics.ts         Daily metric interfaces
+src/app/features/dashboard/       Daily form, visits and transfers charts, tables, editing flow
+src/app/models/metrics.ts         Daily metric and call-record interfaces
 src/environments/environment.ts   Supabase project configuration
 public/_redirects                 Netlify redirect rule for Angular routes
 public/favicon.ico                Browser tab icon
@@ -99,6 +104,7 @@ public/favicon.ico                Browser tab icon
 
 - `/auth`: login and registration screen.
 - `/dashboard`: protected dashboard.
+- `/privacy`: public bilingual privacy policy.
 - `/`: redirects to `/dashboard`; unauthenticated users are sent to `/auth`.
 - Any unknown route redirects to `/auth`.
 
@@ -106,7 +112,7 @@ public/favicon.ico                Browser tab icon
 
 The application is connected to Supabase for authentication and persistence. Supabase replaces a custom backend in this project: the Angular app authenticates users, reads and writes daily metrics, and relies on database-side access rules to protect operational data.
 
-The database stores one daily metrics record per authenticated user and work date. Sensitive implementation details such as the full table definition, constraints, and Row Level Security policies are intentionally kept out of this public documentation. They should live in the Supabase project configuration or internal deployment notes.
+The database stores daily metrics and individual call records for authenticated users. Call records support technical-visit counts and at most one destination-classified transfer per call. Sensitive implementation details such as the full table definition, constraints, and Row Level Security policies are intentionally kept out of this public documentation. They should live in the Supabase project configuration or internal deployment notes.
 
 At a product level, the data layer must guarantee:
 

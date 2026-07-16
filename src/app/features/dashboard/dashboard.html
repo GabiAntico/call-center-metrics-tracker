@@ -22,6 +22,7 @@
   <section class="workspace">
     <nav
       class="dashboard-menu"
+      [class.is-transfers-active]="activeMenu() === 'transfers'"
       [class.is-daily-entry-active]="activeMenu() === 'daily-entry'"
       aria-label="Menú principal"
     >
@@ -32,6 +33,14 @@
         (click)="setActiveMenu('summary')"
       >
         Resumen
+      </button>
+      <button
+        type="button"
+        [class.is-active]="activeMenu() === 'transfers'"
+        [attr.aria-current]="activeMenu() === 'transfers' ? 'page' : null"
+        (click)="setActiveMenu('transfers')"
+      >
+        Transferencias
       </button>
       <button
         type="button"
@@ -227,44 +236,54 @@
       <section class="data-panel summary-panel" aria-labelledby="summary-title">
         <div class="summary-heading">
           <div>
-            <p class="eyebrow">Resumen</p>
-            <h2 id="summary-title">Conversión acumulada del mes</h2>
+            <p class="eyebrow">
+              {{ activeMenu() === 'transfers' ? 'Transferencias' : 'Resumen' }}
+            </p>
+            <h2 id="summary-title">
+              {{
+                activeMenu() === 'transfers'
+                  ? 'Tasa acumulada de transferencias'
+                  : 'Conversión acumulada del mes'
+              }}
+            </h2>
             <p>{{ monthRangeLabel() || 'Mes completo seleccionado' }}</p>
           </div>
 
           <div class="summary-controls">
-            <div class="source-picker">
-              <span>Datos</span>
-              <div class="source-select">
-                <button
-                  class="source-select-button"
-                  type="button"
-                  [attr.aria-expanded]="isSummaryDataSourcePickerOpen()"
-                  aria-haspopup="listbox"
-                  [disabled]="isLoadingSummary()"
-                  (click)="toggleSummaryDataSourcePicker()"
-                >
-                  <span>{{ selectedSummaryDataSourceLabel() }}</span>
-                  <span aria-hidden="true">▾</span>
-                </button>
+            @if (activeMenu() === 'summary') {
+              <div class="source-picker">
+                <span>Datos</span>
+                <div class="source-select">
+                  <button
+                    class="source-select-button"
+                    type="button"
+                    [attr.aria-expanded]="isSummaryDataSourcePickerOpen()"
+                    aria-haspopup="listbox"
+                    [disabled]="isLoadingSummary()"
+                    (click)="toggleSummaryDataSourcePicker()"
+                  >
+                    <span>{{ selectedSummaryDataSourceLabel() }}</span>
+                    <span aria-hidden="true">▾</span>
+                  </button>
 
-                @if (isSummaryDataSourcePickerOpen()) {
-                  <div class="source-popover" role="listbox" aria-label="Seleccionar datos">
-                    @for (source of summaryDataSourceOptions; track source.value) {
-                      <button
-                        type="button"
-                        role="option"
-                        [class.is-active]="selectedSummaryDataSource() === source.value"
-                        [attr.aria-selected]="selectedSummaryDataSource() === source.value"
-                        (click)="selectSummaryDataSource(source.value)"
-                      >
-                        {{ source.label }}
-                      </button>
-                    }
-                  </div>
-                }
+                  @if (isSummaryDataSourcePickerOpen()) {
+                    <div class="source-popover" role="listbox" aria-label="Seleccionar datos">
+                      @for (source of summaryDataSourceOptions; track source.value) {
+                        <button
+                          type="button"
+                          role="option"
+                          [class.is-active]="selectedSummaryDataSource() === source.value"
+                          [attr.aria-selected]="selectedSummaryDataSource() === source.value"
+                          (click)="selectSummaryDataSource(source.value)"
+                        >
+                          {{ source.label }}
+                        </button>
+                      }
+                    </div>
+                  }
+                </div>
               </div>
-            </div>
+            }
 
             <div class="month-picker">
               <span>Mes</span>
@@ -321,17 +340,34 @@
         <div
           class="summary-filter-group"
           role="group"
-          aria-label="Filtro de visitas para el gráfico"
+          [attr.aria-label]="
+            activeMenu() === 'transfers'
+              ? 'Filtro de transferencias por área'
+              : 'Filtro de visitas para el gráfico'
+          "
         >
-          @for (filter of summaryVisitFilters; track filter.value) {
-            <button
-              type="button"
-              [class.is-active]="selectedSummaryVisitFilter() === filter.value"
-              [attr.aria-pressed]="selectedSummaryVisitFilter() === filter.value"
-              (click)="setSummaryVisitFilter(filter.value)"
-            >
-              {{ filter.label }}
-            </button>
+          @if (activeMenu() === 'transfers') {
+            @for (filter of transferAreaFilters; track filter.value) {
+              <button
+                type="button"
+                [class.is-active]="selectedTransferAreaFilter() === filter.value"
+                [attr.aria-pressed]="selectedTransferAreaFilter() === filter.value"
+                (click)="setTransferAreaFilter(filter.value)"
+              >
+                {{ filter.label }}
+              </button>
+            }
+          } @else {
+            @for (filter of summaryVisitFilters; track filter.value) {
+              <button
+                type="button"
+                [class.is-active]="selectedSummaryVisitFilter() === filter.value"
+                [attr.aria-pressed]="selectedSummaryVisitFilter() === filter.value"
+                (click)="setSummaryVisitFilter(filter.value)"
+              >
+                {{ filter.label }}
+              </button>
+            }
           }
         </div>
 
@@ -346,11 +382,19 @@
               <strong>{{ summaryTotals().calls }}</strong>
             </div>
             <div>
-              <span>Visitas consideradas</span>
+              <span>
+                {{
+                  activeMenu() === 'transfers'
+                    ? 'Transferencias consideradas'
+                    : 'Visitas consideradas'
+                }}
+              </span>
               <strong>{{ summaryTotals().selectedVisits }}</strong>
             </div>
             <div>
-              <span>Conversión acumulada</span>
+              <span>
+                {{ activeMenu() === 'transfers' ? 'Tasa acumulada' : 'Conversión acumulada' }}
+              </span>
               <strong>{{ summaryTotals().percentage.toFixed(1) }}%</strong>
             </div>
           </div>
@@ -362,7 +406,11 @@
               [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight"
               preserveAspectRatio="none"
               role="img"
-              aria-label="Evolución del porcentaje acumulado de visitas técnicas sobre llamadas"
+              [attr.aria-label]="
+                activeMenu() === 'transfers'
+                  ? 'Evolución del porcentaje acumulado de transferencias sobre llamadas'
+                  : 'Evolución del porcentaje acumulado de visitas técnicas sobre llamadas'
+              "
             >
               <rect
                 class="plot-background"
@@ -521,13 +569,25 @@
             </svg>
           </div>
 
-          <div class="summary-table" aria-label="Detalle diario del mes">
+          <div
+            class="summary-table"
+            [class.is-transfer-table]="activeMenu() === 'transfers'"
+            aria-label="Detalle diario del mes"
+          >
             <div class="summary-table-header">
               <span>Día</span>
               <span>Llamadas acum.</span>
-              <span>Visitas consideradas</span>
+              <span>
+                {{
+                  activeMenu() === 'transfers'
+                    ? 'Transferencias consideradas'
+                    : 'Visitas consideradas'
+                }}
+              </span>
               <span>% acum.</span>
-              <span>Acción</span>
+              @if (activeMenu() === 'summary') {
+                <span>Acción</span>
+              }
             </div>
             @for (day of summaryDays(); track day.date) {
               <div class="summary-table-row">
@@ -535,8 +595,9 @@
                 <span>{{ day.cumulativeCalls }}</span>
                 <span>{{ day.cumulativeSelectedVisits }}</span>
                 <span>{{ day.percentage.toFixed(1) }}%</span>
-                <span>
-                  @if (selectedSummaryDataSource() === 'daily_metrics' && day.metricId) {
+                @if (activeMenu() === 'summary') {
+                  <span>
+                    @if (selectedSummaryDataSource() === 'daily_metrics' && day.metricId) {
                     <span class="row-action-group">
                       @if (pendingDeleteMetricId() === day.metricId) {
                         <button
@@ -572,14 +633,15 @@
                         </button>
                       }
                     </span>
-                  } @else if (selectedSummaryDataSource() === 'daily_metrics' && day.hasMetric) {
-                    <span class="muted-cell">Duplicado</span>
-                  } @else if (selectedSummaryDataSource() === 'call_records' && day.hasMetric) {
-                    <span class="muted-cell">Solo lectura</span>
-                  } @else {
-                    <span class="muted-cell">--</span>
-                  }
-                </span>
+                    } @else if (selectedSummaryDataSource() === 'daily_metrics' && day.hasMetric) {
+                      <span class="muted-cell">Duplicado</span>
+                    } @else if (selectedSummaryDataSource() === 'call_records' && day.hasMetric) {
+                      <span class="muted-cell">Solo lectura</span>
+                    } @else {
+                      <span class="muted-cell">--</span>
+                    }
+                  </span>
+                }
               </div>
             }
           </div>
